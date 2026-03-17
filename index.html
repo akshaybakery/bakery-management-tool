@@ -165,9 +165,9 @@ async function api(action,params={},body=null){
   url.searchParams.set('action',action);
   for(const[k,v]of Object.entries(params))url.searchParams.set(k,v);
   let res;
-  if(body){
-    res=await fetch(url.toString(),{method:'POST',body:JSON.stringify(body),headers:{'Content-Type':'text/plain;charset=utf-8'},redirect:'follow'});
-    if(res.redirected){res=await fetch(res.url);}
+  if(body){url.searchParams.set('payload',JSON.stringify(body));
+    res=await fetch(url.toString(),{method:'GET',redirect:'follow'});
+    
   }else{
     res=await fetch(url.toString(),{method:'GET',redirect:'follow'});
   }
