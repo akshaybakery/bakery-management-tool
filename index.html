@@ -415,6 +415,7 @@ function parseRecord(rec){
   if(typeof rec.method==='string')try{rec.method=JSON.parse(rec.method)}catch(e){rec.method=[]}
   if(typeof rec.materials==='string')try{rec.materials=JSON.parse(rec.materials)}catch(e){rec.materials=[]}
   if(typeof rec.date==='string'&&rec.date.includes('T'))rec.date=toISO(new Date(rec.date));
+  if(rec.deliveryDate){if(rec.deliveryDate instanceof Date)rec.deliveryDate=toISO(rec.deliveryDate);else if(typeof rec.deliveryDate==='string'&&rec.deliveryDate.includes('T'))rec.deliveryDate=toISO(new Date(rec.deliveryDate))}
 }
 
 function loadForm(){
