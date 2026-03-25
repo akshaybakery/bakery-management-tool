@@ -137,14 +137,20 @@ function saveEntry(entry) {
     var shopCol = headers.indexOf('shop');
     var dateCol = headers.indexOf('date');
     for (let i = data.length - 1; i >= 1; i--) {
+      var sheetDate = data[i][dateCol] instanceof Date ? Utilities.formatDate(data[i][dateCol], Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(data[i][dateCol]).substring(0,10);
+      var rowType = typeCol >= 0 ? String(data[i][typeCol] || '') : '';
       if (entry.type === 'advanceOrder' || entry.type === 'recipe' || entry.type === 'rawMaterial' || entry.type === 'goodsInward') {
         if (idCol >= 0 && data[i][idCol] === entry.id) {
           sheet.deleteRow(i + 1);
         }
-      } else {
-        var sheetDate = data[i][dateCol] instanceof Date ? Utilities.formatDate(data[i][dateCol], Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(data[i][dateCol]).substring(0,10);
-        var rowType = typeCol >= 0 ? data[i][typeCol] : '';
-        if (!rowType && data[i][shopCol] == entry.shop && sheetDate == entry.date) {
+      } else if (entry.type === 'productOrder') {
+        // Product orders: replace by shop+date+type (one per shop per date)
+        if (rowType === 'productOrder' && String(data[i][shopCol]) === String(entry.shop) && sheetDate === entry.date) {
+          sheet.deleteRow(i + 1);
+        }
+      } else if (!entry.type) {
+        // Daily entries: replace by shop+date (only delete other daily entries, not typed ones)
+        if (!rowType && String(data[i][shopCol]) === String(entry.shop) && sheetDate === entry.date) {
           sheet.deleteRow(i + 1);
         }
       }
