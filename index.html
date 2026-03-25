@@ -2095,15 +2095,54 @@ function generateExecutiveReport(){
   html+='<div class="hdr-right"><div class="period">'+range.label+'</div>';
   html+=fmtD(range.from)+' \u2014 '+fmtD(range.to)+'<br>Generated: '+genDate+'<br>'+numDays+' operating day(s)</div></div>';
 
+  // ── BUSINESS NARRATIVE ──
+  var revTrend=cRev>0?pctChange(totRev,cRev):0;
+  var costTrend=cExp+cVen>0?pctChange(totExp+totVen,cExp+cVen):0;
+  var walkTrend=cWalk>0?pctChange(totWalk,cWalk):0;
+  var bestDay=dailyData.reduce(function(a,b){return b.total>a.total?b:a},dailyData[0]);
+  var worstDay=dailyData.reduce(function(a,b){return b.total<a.total?b:a},dailyData[0]);
+  var avgTicket=totWalk>0?(totRev/totWalk):0;
+  var s0Ticket=s0Walk>0?(s0Rev/s0Walk):0;
+  var s1Ticket=s1Walk>0?(s1Rev/s1Walk):0;
+  var healthLabel=margin>=20?'strong':margin>=10?'healthy':margin>=5?'moderate':'under pressure';
+  var revDir=revTrend>2?'upward trajectory':revTrend<-2?'downward trajectory':'stable trajectory';
+
+  html+='<div class="section"><div class="section-title">Business Overview</div>';
+  html+='<div style="font-size:13px;line-height:1.9;color:#333;background:#f8faf9;border-radius:8px;padding:18px 20px;border:1px solid #e5e7eb">';
+  html+='During the reporting period (<b>'+fmtD(range.from)+'</b> to <b>'+fmtD(range.to)+'</b>), Akshay Bakery recorded a total revenue of <b>'+rf(Math.round(totRev))+'</b> across <b>'+numDays+' operating days</b>, reflecting a <b>'+revDir+'</b>';
+  if(cRev>0)html+=' with a <b>'+(revTrend>=0?'+':'')+revTrend.toFixed(1)+'%</b> change versus the prior comparable period';
+  html+='. ';
+  html+='The business is in a <b>'+healthLabel+'</b> financial position with a net margin of <b>'+pct(margin)+'</b>. ';
+  html+='Combined operating costs stood at <b>'+rf(Math.round(totExp+totVen))+'</b>';
+  if(cExp+cVen>0)html+=' ('+(costTrend>=0?'up':'down')+' '+Math.abs(costTrend).toFixed(1)+'% vs prior period)';
+  html+='. ';
+  html+='<br><br>';
+  html+='Average daily revenue was <b>'+rf(Math.round(avgDailyRev))+'</b> with an average ticket size of <b>'+rf(Math.round(avgTicket))+'</b> per customer. ';
+  html+='The best performing day was <b>'+fmtD(bestDay.date)+'</b> ('+rf(Math.round(bestDay.total))+')';
+  if(worstDay.date!==bestDay.date)html+=', while the lowest was <b>'+fmtD(worstDay.date)+'</b> ('+rf(Math.round(worstDay.total))+')';
+  html+='. ';
+  if(s0Rev>0&&s1Rev>0){
+    var leader=s0Rev>s1Rev?'Highway':'Mainroad';var lagging=s0Rev>s1Rev?'Mainroad':'Highway';
+    html+='<b>'+leader+' Branch</b> led revenue generation at <b>'+rf(Math.round(Math.max(s0Rev,s1Rev)))+'</b> ('+(Math.max(s0Rev,s1Rev)/totRev*100).toFixed(0)+'% share), while '+lagging+' contributed <b>'+rf(Math.round(Math.min(s0Rev,s1Rev)))+'</b>. ';
+  }
+  html+='Digital payments (UPI) accounted for <b>'+pct(upiPct)+'</b> of total collections. ';
+  html+='Total customer footfall was <b>'+totWalk+'</b>';
+  if(cWalk>0)html+=' ('+(walkTrend>=0?'+':'')+walkTrend.toFixed(1)+'% vs prior)';
+  html+='.';
+  html+='</div></div>';
+
   // ── EXECUTIVE SUMMARY ──
-  html+='<div class="section"><div class="section-title">Executive Summary</div>';
+  html+='<div class="section"><div class="section-title">Key Performance Indicators</div>';
   html+='<div class="kpi-grid">';
   html+='<div class="kpi green"><div class="kpi-label">Total Revenue</div><div class="kpi-value">'+rf(Math.round(totRev))+'</div><div class="kpi-change">'+chg(totRev,cRev)+' vs prev</div></div>';
   html+='<div class="kpi red"><div class="kpi-label">Total Costs</div><div class="kpi-value">'+rf(Math.round(totExp+totVen))+'</div><div class="kpi-change">'+chg(totExp+totVen,cExp+cVen)+' vs prev</div></div>';
-  html+='<div class="kpi '+(grossProfit>=0?'green':'red')+'"><div class="kpi-label">Gross Profit</div><div class="kpi-value">'+rf(Math.round(grossProfit))+'</div><div class="kpi-change">'+chg(grossProfit,cGross)+' vs prev</div></div>';
+  html+='<div class="kpi '+(grossProfit>=0?'green':'red')+'"><div class="kpi-label">Net Profit</div><div class="kpi-value">'+rf(Math.round(grossProfit))+'</div><div class="kpi-change">'+chg(grossProfit,cGross)+' vs prev</div></div>';
   html+='<div class="kpi '+(margin>=15?'green':margin>=5?'amber':'red')+'"><div class="kpi-label">Profit Margin</div><div class="kpi-value">'+pct(margin)+'</div><div class="kpi-change">prev: '+pct(cMargin)+'</div></div>';
   html+='<div class="kpi blue"><div class="kpi-label">Avg Daily Revenue</div><div class="kpi-value">'+rf(Math.round(avgDailyRev))+'</div><div class="kpi-change">'+numDays+' days</div></div>';
   html+='<div class="kpi blue"><div class="kpi-label">Total Footfall</div><div class="kpi-value">'+totWalk.toLocaleString('en-IN')+'</div><div class="kpi-change">'+chg(totWalk,cWalk)+' vs prev</div></div>';
+  html+='<div class="kpi green"><div class="kpi-label">Avg Ticket Size</div><div class="kpi-value">'+rf(Math.round(avgTicket))+'</div><div class="kpi-change">per customer</div></div>';
+  html+='<div class="kpi blue"><div class="kpi-label">UPI Adoption</div><div class="kpi-value">'+pct(upiPct)+'</div><div class="kpi-change">'+rf(Math.round(totUpi))+' collected</div></div>';
+  html+='<div class="kpi '+(totalDisc>totRev*0.02?'red':'green')+'"><div class="kpi-label">Cash Accuracy</div><div class="kpi-value">'+pct(totRev>0?((1-totalDisc/totRev)*100):100)+'</div><div class="kpi-change">discrepancy: '+rf(Math.round(totalDisc))+'</div></div>';
   html+='</div></div>';
 
   // ── REVENUE ANALYSIS ──
@@ -2188,6 +2227,90 @@ function generateExecutiveReport(){
     html+='</tbody></table></div>';
   }
 
+  // ── PRODUCTION VS SALES ANALYSIS (PROFIT LEAKAGE) ──
+  // Compare production orders (what was ordered/produced) vs what was actually sold
+  var prodOrderMap={};var salesMap={};
+  allRecs.forEach(function(r){
+    (r.productOrders||[]).forEach(function(p){
+      var key=p.product||'Unknown';
+      if(!prodOrderMap[key])prodOrderMap[key]={qty:0,unit:p.unit||'pcs'};
+      prodOrderMap[key].qty+=Number(p.qty)||0;
+    });
+  });
+  // Get production records for same period
+  var prodRecs=(S.records||[]).filter(function(r){return r.date>=range.from&&r.date<=range.to});
+  // Also check advance orders as production targets
+  var advOrdMap={};
+  (S.advOrders||[]).forEach(function(r){
+    if(r.deliveryDate>=range.from&&r.deliveryDate<=range.to){
+      var key=r.product||'Unknown';
+      if(!advOrdMap[key])advOrdMap[key]={qty:0,unit:r.unit||'pcs'};
+      advOrdMap[key].qty+=Number(r.qty)||0;
+    }
+  });
+  // Per-shop product comparison
+  var s0ProdMap={},s1ProdMap={};
+  allRecs.forEach(function(r){
+    var m=r.shop==0?s0ProdMap:s1ProdMap;
+    (r.productOrders||[]).forEach(function(p){
+      var key=p.product||'Unknown';if(!m[key])m[key]=0;m[key]+=Number(p.qty)||0;
+    });
+  });
+
+  html+='<div class="section"><div class="section-title">Production to Sales Analysis</div>';
+  html+='<div style="font-size:12px;color:#555;margin-bottom:12px;line-height:1.6">This section compares production orders dispatched to each shop against advance orders placed. Discrepancies may indicate <b>overproduction (wastage)</b>, <b>underproduction (lost sales)</b>, or <b>profit leakage</b> in the supply chain.</div>';
+
+  // Production dispatch per shop
+  if(Object.keys(s0ProdMap).length||Object.keys(s1ProdMap).length){
+    html+='<table><thead><tr><th>Product</th><th class="num">Highway Dispatched</th><th class="num">Mainroad Dispatched</th><th class="num">Total Production</th><th class="num">Advance Orders</th><th class="num">Variance</th><th>Status</th></tr></thead><tbody>';
+    var allProds={};
+    for(var k in s0ProdMap)allProds[k]=true;
+    for(var k in s1ProdMap)allProds[k]=true;
+    for(var k in advOrdMap)allProds[k]=true;
+    var prodKeys=Object.keys(allProds).sort();
+    var totalProd=0,totalAdv=0,leakItems=[];
+    prodKeys.forEach(function(k){
+      var hwy=s0ProdMap[k]||0,main=s1ProdMap[k]||0,tot=hwy+main;
+      var adv=advOrdMap[k]?advOrdMap[k].qty:0;
+      var variance=tot-adv;
+      totalProd+=tot;totalAdv+=adv;
+      var status='',cls='';
+      if(adv>0&&tot>adv*1.2){status='Overproduction';cls='color:#d97706'}
+      else if(adv>0&&tot<adv*0.8){status='Underproduction';cls='color:#dc2626';leakItems.push(k)}
+      else if(adv>0){status='On Target';cls='color:#16a34a'}
+      else{status='No Advance Order';cls='color:#777'}
+      html+='<tr><td><b>'+k+'</b></td><td class="num">'+hwy+'</td><td class="num">'+main+'</td><td class="num"><b>'+tot+'</b></td><td class="num">'+(adv||'-')+'</td><td class="num" style="'+(variance>0?'color:#d97706':variance<0?'color:#dc2626':'')+'">'+((variance>0?'+':'')+variance)+'</td><td style="'+cls+';font-weight:600;font-size:11px">'+status+'</td></tr>';
+    });
+    html+='</tbody></table>';
+
+    // Leakage summary
+    var overProd=prodKeys.filter(function(k){var tot=(s0ProdMap[k]||0)+(s1ProdMap[k]||0);var adv=advOrdMap[k]?advOrdMap[k].qty:0;return adv>0&&tot>adv*1.2});
+    var underProd=prodKeys.filter(function(k){var tot=(s0ProdMap[k]||0)+(s1ProdMap[k]||0);var adv=advOrdMap[k]?advOrdMap[k].qty:0;return adv>0&&tot<adv*0.8});
+
+    html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">';
+    html+='<div style="padding:12px;border-radius:6px;background:#fffbeb;border:1px solid #fde68a"><div style="font-weight:700;font-size:12px;color:#92400e;margin-bottom:4px">Overproduction Risk</div><div style="font-size:12px;color:#78350f">'+(overProd.length?'<b>'+overProd.join(', ')+'</b> produced significantly more than ordered. This may lead to <b>wastage</b> and increased costs.':'No significant overproduction detected.')+'</div></div>';
+    html+='<div style="padding:12px;border-radius:6px;background:#fef2f2;border:1px solid #fecaca"><div style="font-weight:700;font-size:12px;color:#991b1b;margin-bottom:4px">Underproduction / Lost Sales</div><div style="font-size:12px;color:#7f1d1d">'+(underProd.length?'<b>'+underProd.join(', ')+'</b> fell short of advance orders. This indicates <b>potential lost revenue</b> and unmet customer demand.':'No significant underproduction detected.')+'</div></div>';
+    html+='</div>';
+  }else{
+    html+='<div style="padding:16px;text-align:center;color:#777;font-size:12px">No production order data available for this period. Ensure orders are being entered via the ordering staff login.</div>';
+  }
+
+  // Shop-wise efficiency
+  if(s0Rev>0&&s1Rev>0){
+    html+='<div style="margin-top:16px"><div style="font-weight:700;font-size:12px;color:#0c3a2d;margin-bottom:8px">Shop Efficiency Comparison</div>';
+    var s0Margin=s0Rev>0?((s0Rev-s0Exp)/s0Rev*100):0;
+    var s1Margin=s1Rev>0?((s1Rev-s1Exp)/s1Rev*100):0;
+    var s0CostPerWalk=s0Walk>0?(s0Exp/s0Walk):0;
+    var s1CostPerWalk=s1Walk>0?(s1Exp/s1Walk):0;
+    html+='<table><thead><tr><th>Metric</th><th class="num">Highway</th><th class="num">Mainroad</th><th class="num">Variance</th><th>Assessment</th></tr></thead><tbody>';
+    html+='<tr><td>Revenue per Day</td><td class="num">'+rf(Math.round(s0Rev/numDays))+'</td><td class="num">'+rf(Math.round(s1Rev/numDays))+'</td><td class="num">'+rf(Math.round(s0Rev/numDays-s1Rev/numDays))+'</td><td style="font-size:11px">'+(s0Rev/numDays>s1Rev/numDays?'Highway leads':'Mainroad leads')+'</td></tr>';
+    html+='<tr><td>Profit Margin</td><td class="num">'+pct(s0Margin)+'</td><td class="num">'+pct(s1Margin)+'</td><td class="num">'+(s0Margin-s1Margin).toFixed(1)+'pp</td><td style="font-size:11px;color:'+(Math.abs(s0Margin-s1Margin)>10?'#dc2626':'#16a34a')+'">'+(Math.abs(s0Margin-s1Margin)>10?'Significant gap':'Balanced')+'</td></tr>';
+    html+='<tr><td>Avg Ticket Size</td><td class="num">'+rf(Math.round(s0Ticket))+'</td><td class="num">'+rf(Math.round(s1Ticket))+'</td><td class="num">'+rf(Math.round(s0Ticket-s1Ticket))+'</td><td style="font-size:11px">'+(s0Ticket>s1Ticket?'Highway higher spend':'Mainroad higher spend')+'</td></tr>';
+    html+='<tr><td>Cost per Walk-in</td><td class="num">'+rf(Math.round(s0CostPerWalk))+'</td><td class="num">'+rf(Math.round(s1CostPerWalk))+'</td><td class="num">'+rf(Math.round(s0CostPerWalk-s1CostPerWalk))+'</td><td style="font-size:11px;color:'+(Math.abs(s0CostPerWalk-s1CostPerWalk)>50?'#d97706':'#16a34a')+'">'+(Math.min(s0CostPerWalk,s1CostPerWalk)===s0CostPerWalk?'Highway more efficient':'Mainroad more efficient')+'</td></tr>';
+    html+='</tbody></table></div>';
+  }
+  html+='</div>';
+
   // ── VENDOR PAYABLES ──
   if(venArr.length){
     html+='<div class="section"><div class="section-title">Vendor Payables</div>';
@@ -2202,8 +2325,35 @@ function generateExecutiveReport(){
 
   // ── AREAS NEEDING ATTENTION ──
   html+='<div class="section"><div class="section-title">Key Areas Requiring Attention</div>';
+  html+='<div style="font-size:12px;color:#555;margin-bottom:10px;line-height:1.5">Automated analysis based on your business data. Items are prioritized by severity: <span style="color:#dc2626;font-weight:600">High</span> requires immediate action, <span style="color:#d97706;font-weight:600">Medium</span> needs monitoring, <span style="color:#2563eb;font-weight:600">Low</span> is an improvement opportunity.</div>';
   alerts.forEach(function(a){html+='<div class="alert '+a.sev+'"><span>'+a.icon+'</span><span>'+a.msg+'</span></div>'});
   html+='</div>';
+
+  // ── STRATEGIC RECOMMENDATIONS ──
+  html+='<div class="section"><div class="section-title">Strategic Recommendations</div>';
+  html+='<div style="font-size:12px;line-height:1.8;color:#333">';
+  html+='<table><thead><tr><th style="width:30%">Focus Area</th><th>Recommendation</th><th style="width:15%">Priority</th></tr></thead><tbody>';
+  // Revenue recommendations
+  if(revTrend<-5)html+='<tr><td><b>Revenue Recovery</b></td><td>Revenue has declined '+Math.abs(revTrend).toFixed(0)+'%. Consider promotional offers, loyalty programs, or reviewing product pricing to stimulate demand.</td><td style="color:#dc2626;font-weight:600">High</td></tr>';
+  else if(revTrend>10)html+='<tr><td><b>Growth Momentum</b></td><td>Strong revenue growth of +'+revTrend.toFixed(0)+'%. Ensure supply chain and staffing can sustain this trajectory. Consider capacity planning for continued growth.</td><td style="color:#16a34a;font-weight:600">Sustain</td></tr>';
+  // Margin
+  if(margin<10)html+='<tr><td><b>Margin Improvement</b></td><td>Net margin at '+pct(margin)+' is below the 10% industry benchmark for bakeries. Review vendor pricing, reduce wastage, and evaluate menu pricing.</td><td style="color:#dc2626;font-weight:600">High</td></tr>';
+  // Cash management
+  if(totalDisc>totRev*0.02&&totRev>0)html+='<tr><td><b>Cash Controls</b></td><td>Cash discrepancy of '+pct(totalDisc/totRev*100)+' suggests gaps in cash handling. Implement daily cash counting procedures and cross-verify with POS records.</td><td style="color:#d97706;font-weight:600">Medium</td></tr>';
+  // UPI
+  if(upiPct<40)html+='<tr><td><b>Digital Payments</b></td><td>UPI at '+pct(upiPct)+' is below optimal. Promote QR code payments with small discounts. Target 60%+ digital payments to reduce cash handling costs and errors.</td><td style="color:#2563eb;font-weight:600">Medium</td></tr>';
+  // Shop balance
+  if(s0Rev>0&&s1Rev>0){var shopGap=Math.abs(s0Rev-s1Rev)/Math.max(s0Rev,s1Rev)*100;
+    if(shopGap>30){var weak=s0Rev<s1Rev?'Highway':'Mainroad';html+='<tr><td><b>Shop Performance</b></td><td>'+weak+' Branch underperforms by '+shopGap.toFixed(0)+'%. Investigate local competition, foot traffic patterns, and consider targeted marketing for the weaker location.</td><td style="color:#d97706;font-weight:600">Medium</td></tr>'}}
+  // Vendor
+  if(totalBal>5000)html+='<tr><td><b>Vendor Management</b></td><td>Outstanding payables of '+rf(Math.round(totalBal))+'. Negotiate better payment terms with top vendors. Consider bulk purchase discounts to improve COGS.</td><td style="color:#d97706;font-weight:600">Medium</td></tr>';
+  // Expense control
+  if(costTrend>10&&cExp+cVen>0)html+='<tr><td><b>Cost Optimization</b></td><td>Total costs increased '+costTrend.toFixed(0)+'% vs prior period while revenue '+(revTrend>0?'grew only '+revTrend.toFixed(0)+'%':'declined')+'. Conduct a line-by-line expense review to identify non-essential spending.</td><td style="color:#dc2626;font-weight:600">High</td></tr>';
+  // Footfall
+  if(walkTrend<-10&&cWalk>0)html+='<tr><td><b>Customer Acquisition</b></td><td>Footfall dropped '+Math.abs(walkTrend).toFixed(0)+'%. Review store visibility, signage, opening hours, and consider local marketing or partnerships.</td><td style="color:#d97706;font-weight:600">Medium</td></tr>';
+  // General positive
+  if(margin>=15&&revTrend>0)html+='<tr><td><b>Expansion Planning</b></td><td>Healthy margin of '+pct(margin)+' with positive revenue trend. Consider investing in new product lines, delivery services, or extended hours to capitalize on momentum.</td><td style="color:#16a34a;font-weight:600">Opportunity</td></tr>';
+  html+='</tbody></table></div></div>';
 
   // ── FOOTER ──
   html+='<div class="footer">CONFIDENTIAL \u2014 For Internal Use Only<br>Akshay Bakery \u2022 Executive Business Report \u2022 '+genDate+'<br>Report Period: '+fmtD(range.from)+' to '+fmtD(range.to)+'</div>';
