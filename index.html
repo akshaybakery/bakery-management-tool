@@ -1390,15 +1390,15 @@ function renderOrderingEntry(){
   }
 
   // Saved orders for selected shop+date (from prodOrderRecords and daily records)
-  var savedOrds=[];
-  for(var i=0;i<(S.prodOrderRecords||[]).length;i++){var por=S.prodOrderRecords[i];if(por.shop==S.ordShop&&por.date===S.date){var po=por.productOrders||[];for(var j=0;j<po.length;j++)savedOrds.push(po[j])}}
+  var savedOrds=[],savedOrdRecId=null;
+  for(var i=0;i<(S.prodOrderRecords||[]).length;i++){var por=S.prodOrderRecords[i];if(por.shop==S.ordShop&&por.date===S.date){savedOrdRecId=por.id;var po=por.productOrders||[];for(var j=0;j<po.length;j++)savedOrds.push(po[j])}}
   for(var i=0;i<S.records.length;i++){var r=S.records[i];if(r.shop==S.ordShop&&r.date===S.date){var po=r.productOrders||[];for(var j=0;j<po.length;j++){var dup=false;for(var k=0;k<savedOrds.length;k++){if(savedOrds[k].id===po[j].id){dup=true;break}}if(!dup)savedOrds.push(po[j])}}}
   if(savedOrds.length){
     var sByCat={};for(var i=0;i<PCATS.length;i++)sByCat[PCATS[i]]=[];
     for(var i=0;i<savedOrds.length;i++){var o=savedOrds[i];var cat=o.category||'Baking';if(!sByCat[cat])sByCat[cat]=[];sByCat[cat].push(o)}
     var sTotalQty=0;for(var i=0;i<savedOrds.length;i++)sTotalQty+=savedOrds[i].qty||0;
     var sIcons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
-    out+='<div class="card" style="margin-top:12px;border-left:3px solid var(--green)"><div class="ch"><div class="ci g">\u2705</div><div><div class="ct">Saved Orders \u2022 '+SHOPS[S.ordShop]+'</div><div class="cs">'+savedOrds.length+' items \u2022 '+sTotalQty+' total qty \u2022 '+fmtD(S.date)+'</div></div><button class="ab" id="editSavedOrds" style="margin-left:auto;font-size:11px;padding:5px 12px;border:1px solid var(--border);border-radius:var(--rs);background:var(--card);color:var(--text2);cursor:pointer">\u270E Edit</button></div>';
+    out+='<div class="card" style="margin-top:12px;border-left:3px solid var(--green)"><div class="ch"><div class="ci g">\u2705</div><div><div class="ct">Saved Orders \u2022 '+SHOPS[S.ordShop]+'</div><div class="cs">'+savedOrds.length+' items \u2022 '+sTotalQty+' total qty \u2022 '+fmtD(S.date)+'</div></div><div style="margin-left:auto;display:flex;gap:6px"><button class="ab" id="editSavedOrds" style="font-size:11px;padding:5px 12px;border:1px solid var(--border);border-radius:var(--rs);background:var(--card);color:var(--text2);cursor:pointer">\u270E Edit</button>'+(savedOrdRecId?'<button class="ab" id="delSavedOrds" data-delordid="'+savedOrdRecId+'" style="font-size:11px;padding:5px 12px;border:1px solid var(--rose);border-radius:var(--rs);background:var(--card);color:var(--rose);cursor:pointer">\u00D7</button>':'')+'</div></div>';
     for(var c=0;c<PCATS.length;c++){var cat=PCATS[c];var items=sByCat[cat]||[];if(!items.length)continue;
       out+='<div style="font-size:11px;font-weight:700;color:var(--text2);margin:8px 0 4px;text-transform:uppercase">'+(sIcons[cat]||'')+' '+cat+' ('+items.length+')</div>';
       for(var i=0;i<items.length;i++){var o=items[i];out+='<div class="ir"><div><div class="in">'+o.product+'</div>'+(o.notes?'<div class="ic">'+o.notes+'</div>':'')+'</div><div class="order-qty">'+o.qty+' '+o.unit+'</div></div>'}}
@@ -3028,6 +3028,11 @@ function bindEvents(){
   var addOrdItem=document.getElementById('addOrdItem');if(addOrdItem)addOrdItem.onclick=function(){var p=document.getElementById('ordProduct2'),q=document.getElementById('ordQty2'),u=document.getElementById('ordUnit2'),c=document.getElementById('ordCat2'),n=document.getElementById('ordNotes2');var qty=parseInt(q.value)||0;if(!qty||!p.value)return;S.ordItems.push({id:gid(),product:p.value,category:c.value,qty:qty,unit:u.value,notes:n.value||''});addProductName(p.value);render()};
   document.querySelectorAll('[data-delorditem]').forEach(function(b){b.onclick=function(){S.ordItems.splice(parseInt(b.dataset.delorditem),1);render()}});
   var shareWA=document.getElementById('shareWhatsApp');if(shareWA)shareWA.onclick=function(){var msg=formatOrderForWhatsApp();var url='https://wa.me/?text='+encodeURIComponent(msg);window.open(url,'_blank')};
+  var delSaved=document.getElementById('delSavedOrds');if(delSaved)delSaved.onclick=function(){
+    if(!confirm('Delete this saved order?'))return;
+    var id=delSaved.dataset.delordid;
+    callApi('delete',{id:id}).then(function(){toast('Order deleted');return doFetch()}).catch(function(e){toast('\u274C '+e.message)})
+  };
   var editSaved=document.getElementById('editSavedOrds');if(editSaved)editSaved.onclick=function(){
     // Load saved orders back into S.ordItems for editing
     var loaded=[];
