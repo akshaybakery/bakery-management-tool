@@ -1398,7 +1398,7 @@ function renderOrderingEntry(){
     for(var i=0;i<savedOrds.length;i++){var o=savedOrds[i];var cat=o.category||'Baking';if(!sByCat[cat])sByCat[cat]=[];sByCat[cat].push(o)}
     var sTotalQty=0;for(var i=0;i<savedOrds.length;i++)sTotalQty+=savedOrds[i].qty||0;
     var sIcons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
-    out+='<div class="card" style="margin-top:12px;border-left:3px solid var(--green)"><div class="ch"><div class="ci g">\u2705</div><div><div class="ct">Saved Orders \u2022 '+SHOPS[S.ordShop]+'</div><div class="cs">'+savedOrds.length+' items \u2022 '+sTotalQty+' total qty \u2022 '+fmtD(S.date)+'</div></div></div>';
+    out+='<div class="card" style="margin-top:12px;border-left:3px solid var(--green)"><div class="ch"><div class="ci g">\u2705</div><div><div class="ct">Saved Orders \u2022 '+SHOPS[S.ordShop]+'</div><div class="cs">'+savedOrds.length+' items \u2022 '+sTotalQty+' total qty \u2022 '+fmtD(S.date)+'</div></div><button class="ab" id="editSavedOrds" style="margin-left:auto;font-size:11px;padding:5px 12px;border:1px solid var(--border);border-radius:var(--rs);background:var(--card);color:var(--text2);cursor:pointer">\u270E Edit</button></div>';
     for(var c=0;c<PCATS.length;c++){var cat=PCATS[c];var items=sByCat[cat]||[];if(!items.length)continue;
       out+='<div style="font-size:11px;font-weight:700;color:var(--text2);margin:8px 0 4px;text-transform:uppercase">'+(sIcons[cat]||'')+' '+cat+' ('+items.length+')</div>';
       for(var i=0;i<items.length;i++){var o=items[i];out+='<div class="ir"><div><div class="in">'+o.product+'</div>'+(o.notes?'<div class="ic">'+o.notes+'</div>':'')+'</div><div class="order-qty">'+o.qty+' '+o.unit+'</div></div>'}}
@@ -3016,6 +3016,13 @@ function bindEvents(){
   var addOrdItem=document.getElementById('addOrdItem');if(addOrdItem)addOrdItem.onclick=function(){var p=document.getElementById('ordProduct2'),q=document.getElementById('ordQty2'),u=document.getElementById('ordUnit2'),c=document.getElementById('ordCat2'),n=document.getElementById('ordNotes2');var qty=parseInt(q.value)||0;if(!qty||!p.value)return;S.ordItems.push({id:gid(),product:p.value,category:c.value,qty:qty,unit:u.value,notes:n.value||''});addProductName(p.value);render()};
   document.querySelectorAll('[data-delorditem]').forEach(function(b){b.onclick=function(){S.ordItems.splice(parseInt(b.dataset.delorditem),1);render()}});
   var shareWA=document.getElementById('shareWhatsApp');if(shareWA)shareWA.onclick=function(){var msg=formatOrderForWhatsApp();var url='https://wa.me/?text='+encodeURIComponent(msg);window.open(url,'_blank')};
+  var editSaved=document.getElementById('editSavedOrds');if(editSaved)editSaved.onclick=function(){
+    // Load saved orders back into S.ordItems for editing
+    var loaded=[];
+    for(var i=0;i<(S.prodOrderRecords||[]).length;i++){var por=S.prodOrderRecords[i];if(por.shop==S.ordShop&&por.date===S.date){var po=por.productOrders||[];for(var j=0;j<po.length;j++)loaded.push(JSON.parse(JSON.stringify(po[j])))}}
+    for(var i=0;i<S.records.length;i++){var r=S.records[i];if(r.shop==S.ordShop&&r.date===S.date){var po=r.productOrders||[];for(var j=0;j<po.length;j++){var dup=false;for(var k=0;k<loaded.length;k++){if(loaded[k].id===po[j].id){dup=true;break}}if(!dup)loaded.push(JSON.parse(JSON.stringify(po[j])))}}}
+    if(loaded.length){S.ordItems=loaded;render();toast('\u270E Loaded '+loaded.length+' items for editing. Modify and save again.')}
+  };
   var saveOrdBtn=document.getElementById('saveOrdBtn');if(saveOrdBtn)saveOrdBtn.onclick=function(){
     if(S.saving||!S.ordItems.length)return;S.saving=true;saveOrdBtn.textContent='\u23F3 Saving...';saveOrdBtn.className='save-btn off';
     var entry={id:gid(),type:'productOrder',shop:S.ordShop,date:S.date,productOrders:JSON.parse(JSON.stringify(S.ordItems)),savedAt:new Date().toISOString(),savedBy:'ordering'};
