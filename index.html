@@ -886,7 +886,7 @@ function barCard(icon,title,sub,dt,key,color){
 
 /* ===== VENDORS TAB ===== */
 function renderVendors(){
-  var R=S.records;
+  var R=S.records;var isO=S.role==='owner';
   var shopF=S.ledgerShop;// 'all', 0, 1
   var shopMatch=function(sh){return shopF==='all'||sh==shopF};
 
@@ -911,14 +911,14 @@ function renderVendors(){
     for(var j=0;j<gi.length;j++){
       var vn=gi[j].vendor||'Unknown';
       if(!vMap[vn])vMap[vn]={bills:[],payments:[]};
-      vMap[vn].bills.push({date:rec.date,shop:rec.shop,amount:gi[j].amount,items:gi[j].items||'',billNo:gi[j].billNo||'',entryType:gi[j].entryType||'bill',qty:gi[j].qty||0,qtyUnit:gi[j].qtyUnit||''});
+      vMap[vn].bills.push({date:rec.date,shop:rec.shop,amount:gi[j].amount,items:gi[j].items||'',billNo:gi[j].billNo||'',entryType:gi[j].entryType||'bill',qty:gi[j].qty||0,qtyUnit:gi[j].qtyUnit||'',recId:rec.id,giIdx:j});
     }
     var exps=rec.expenses||[];
     for(var j=0;j<exps.length;j++){
       if(exps[j].category==='Vendor Payment'&&exps[j].description){
         var vn2=exps[j].description;
         if(!vMap[vn2])vMap[vn2]={bills:[],payments:[]};
-        vMap[vn2].payments.push({date:rec.date,shop:rec.shop,amount:exps[j].amount});
+        vMap[vn2].payments.push({date:rec.date,shop:rec.shop,amount:exps[j].amount,recId:rec.id,expIdx:j});
       }
     }
   }
@@ -929,7 +929,7 @@ function renderVendors(){
       var vn3=gi2[j].vendor||'Unknown';
       if(!vMap[vn3])vMap[vn3]={bills:[],payments:[]};
       var dup=false;for(var m=0;m<vMap[vn3].bills.length;m++){if(vMap[vn3].bills[m].id===gi2[j].id){dup=true;break}}
-      if(!dup)vMap[vn3].bills.push({id:gi2[j].id,date:gr.date,shop:gr.shop,amount:gi2[j].amount,items:gi2[j].items||'',billNo:gi2[j].billNo||'',entryType:gi2[j].entryType||'bill',qty:gi2[j].qty||0,qtyUnit:gi2[j].qtyUnit||'',source:'grn'});
+      if(!dup)vMap[vn3].bills.push({id:gi2[j].id,date:gr.date,shop:gr.shop,amount:gi2[j].amount,items:gi2[j].items||'',billNo:gi2[j].billNo||'',entryType:gi2[j].entryType||'bill',qty:gi2[j].qty||0,qtyUnit:gi2[j].qtyUnit||'',source:'grn',recId:gr.id,giIdx:j});
     }
   }
   var staffMap={};
@@ -975,14 +975,15 @@ function renderVendors(){
     out+='<div class="ven-card"><div class="ven-header" data-ventoggle="'+i+'"><div class="ven-name">\uD83C\uDFEA '+v.name+'</div><div class="ven-badge '+badgeCls+'">'+badgeText+'</div></div>';
     out+='<div class="ven-summary"><div class="ven-stat"><div class="ven-stat-lbl">Bills</div><div class="ven-stat-val" style="color:var(--amber)">'+fmt(v.billTotal)+'</div></div><div class="ven-stat"><div class="ven-stat-lbl">Paid</div><div class="ven-stat-val" style="color:var(--green)">'+fmt(v.paidTotal)+'</div></div><div class="ven-stat"><div class="ven-stat-lbl">Balance</div><div class="ven-stat-val" style="color:'+(v.balance>0?'var(--rose)':'var(--green)')+'">'+fmt(v.balance)+'</div></div></div>';
     var allTxns=[];
-    for(var j=0;j<v.bills.length;j++){var bl=v.bills[j];var bDesc=bl.items||(bl.billNo?'Inv #'+bl.billNo:'Goods received');if(bl.entryType==='qty'&&bl.qty)bDesc=bl.qty+' '+bl.qtyUnit+(bl.items?' \u2022 '+bl.items:'');if(bl.billNo&&bl.entryType!=='qty')bDesc+=(bDesc?' \u2022 ':'')+'Inv #'+bl.billNo;if(bl.source==='grn')bDesc+=' (GRN)';allTxns.push({date:bl.date,type:'bill',desc:bDesc,amount:bl.amount,shop:bl.shop})}
-    for(var j=0;j<v.payments.length;j++)allTxns.push({date:v.payments[j].date,type:'pay',desc:'Payment',amount:v.payments[j].amount,shop:v.payments[j].shop});
+    for(var j=0;j<v.bills.length;j++){var bl=v.bills[j];var bDesc=bl.items||(bl.billNo?'Inv #'+bl.billNo:'Goods received');if(bl.entryType==='qty'&&bl.qty)bDesc=bl.qty+' '+bl.qtyUnit+(bl.items?' \u2022 '+bl.items:'');if(bl.billNo&&bl.entryType!=='qty')bDesc+=(bDesc?' \u2022 ':'')+'Inv #'+bl.billNo;if(bl.source==='grn')bDesc+=' (GRN)';allTxns.push({date:bl.date,type:'bill',desc:bDesc,amount:bl.amount,shop:bl.shop,recId:bl.recId,giIdx:bl.giIdx,source:bl.source})}
+    for(var j=0;j<v.payments.length;j++){var py=v.payments[j];allTxns.push({date:py.date,type:'pay',desc:'Payment',amount:py.amount,shop:py.shop,recId:py.recId,expIdx:py.expIdx})}
     allTxns.sort(function(a,b){return b.date<a.date?-1:b.date>a.date?1:0});
     if(allTxns.length){
       out+='<div class="ven-txn-list" id="venTxn'+i+'" style="display:none">';
       for(var j=0;j<allTxns.length;j++){
         var tx=allTxns[j];
-        out+='<div class="ven-txn"><span class="ven-txn-date">'+fmtD(tx.date)+'</span><span class="ven-txn-desc">'+(tx.type==='bill'?'\uD83D\uDCE6 ':'\uD83D\uDCB0 ')+tx.desc+' \u2022 '+SHOPS[tx.shop]+'</span><span class="ven-txn-amt '+(tx.type==='bill'?'bill':'pay')+'">'+(tx.type==='bill'?'+':'-')+fmt(tx.amount)+'</span></div>';
+        var delBtn=isO?'<button class="ix" style="margin-left:6px;font-size:10px" data-deltxn=\''+JSON.stringify({recId:tx.recId,type:tx.type,giIdx:tx.giIdx,expIdx:tx.expIdx,source:tx.source||''})+'\'>\u00D7</button>':'';
+        out+='<div class="ven-txn"><span class="ven-txn-date">'+fmtD(tx.date)+'</span><span class="ven-txn-desc">'+(tx.type==='bill'?'\uD83D\uDCE6 ':'\uD83D\uDCB0 ')+tx.desc+' \u2022 '+SHOPS[tx.shop]+'</span><span class="ven-txn-amt '+(tx.type==='bill'?'bill':'pay')+'">'+(tx.type==='bill'?'+':'-')+fmt(tx.amount)+delBtn+'</span></div>';
       }
       out+='</div>';
       out+='<button class="ven-expand" data-venshow="'+i+'">\u25BC View '+allTxns.length+' transactions</button>';
@@ -2651,6 +2652,20 @@ function bindEvents(){
   document.querySelectorAll('[data-ledgershop]').forEach(function(b){b.onclick=function(){var v=b.dataset.ledgershop;S.ledgerShop=v==='all'?'all':parseInt(v);render()}});
   // Vendor transaction toggle
   document.querySelectorAll('[data-venshow]').forEach(function(b){b.onclick=function(){var idx=b.dataset.venshow;var el=document.getElementById('venTxn'+idx);if(el){if(el.style.display==='none'){el.style.display='block';b.innerHTML='\u25B2 Hide transactions'}else{el.style.display='none';b.innerHTML='\u25BC View transactions'}}}});
+  // Delete ledger transaction (owner only)
+  document.querySelectorAll('[data-deltxn]').forEach(function(b){b.onclick=function(){
+    if(!confirm('Delete this transaction?'))return;
+    var info=JSON.parse(b.dataset.deltxn);
+    var src=info.source==='grn'?S.grnRecords:S.records;
+    var rec=null;for(var i=0;i<src.length;i++){if(src[i].id===info.recId){rec=src[i];break}}
+    if(!rec){toast('\u274C Record not found');return}
+    if(info.type==='bill'){
+      var gi=rec.goodsInward||[];if(info.giIdx>=0&&info.giIdx<gi.length){gi.splice(info.giIdx,1);rec.goodsInward=gi;var gt=0;for(var i=0;i<gi.length;i++)gt+=gi[i].amount;rec.totalGoodsInward=gt}
+    }else{
+      var exps=rec.expenses||[];if(info.expIdx>=0&&info.expIdx<exps.length){var removed=exps[info.expIdx];exps.splice(info.expIdx,1);rec.expenses=exps;rec.totalExpenses=(rec.totalExpenses||0)-removed.amount;if(removed.category==='Vendor Payment')rec.totalVendorPayments=(rec.totalVendorPayments||0)-removed.amount}
+    }
+    callApi('save',{},rec).then(function(){toast('\u2705 Transaction deleted');return doFetch()}).catch(function(e){toast('\u274C '+e.message)});
+  }});
   // Orders tab
   var ordDateInp=document.getElementById('orderDateInp');if(ordDateInp)ordDateInp.onchange=function(e){S.date=e.target.value;loadForm();render()};
   var addOrd=document.getElementById('addOrder');if(addOrd)addOrd.onclick=function(){var p=document.getElementById('ordProduct'),q=document.getElementById('ordQty'),u=document.getElementById('ordUnit'),c=document.getElementById('ordCat'),n=document.getElementById('ordNotes');var qty=parseInt(q.value)||0;if(!qty||!p.value)return;S.prodOrders.push({id:gid(),product:p.value,category:c.value,qty:qty,unit:u.value,notes:n.value});addProductName(p.value);render()};
