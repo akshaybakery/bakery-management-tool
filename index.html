@@ -405,7 +405,7 @@ else if(/Mac/.test(ua))msg='<b>Mac:</b><br>1. Open in <b>Chrome</b><br>2. Click 
 else msg='Open this page in <b>Chrome</b> or <b>Edge</b> and look for the <b>install icon</b> in the address bar.';
 S.installMsg=msg;render()
 }
-var S={screen:'login',role:null,staffShop:-1,tab:0,shop:0,date:today(),records:[],recipes:[],rawMatRecords:[],grnRecords:[],loading:false,saving:false,oc:[0,0,0,0,0,0,0],cc:[0,0,0,0,0,0,0],upi:0,billed:0,walk:0,exps:[],goodsIn:[],prodOrders:[],rawMats:[],notes:'',pinShow:false,pinVal:'',pinErr:'',pinRole:'',connected:false,reportDate:today(),aShop:'all',rcpForm:{name:'',cat:'Baking',yield:'',yieldUnit:'pcs',prep:'',bake:'',temp:'',ings:[],steps:[''],notes:'',shelf:'',storage:''},rcpAdding:false,rcpView:-1,orderDate:today(),pShop:'all',pRange:'30',giType:'bill',cashRetained:0,ordShop:0,ordItems:[],grnShop:0,grnType:'bill',grnItems:[],advOrders:[],advDate:today(),advCust:'',advProd:'',advQty:'',advUnit:'pcs',advCat:'Baking',advNotes:'',advShop:0,installMsg:null};
+var S={screen:'login',role:null,staffShop:-1,tab:0,shop:0,date:today(),records:[],recipes:[],rawMatRecords:[],grnRecords:[],loading:false,saving:false,oc:[0,0,0,0,0,0,0],cc:[0,0,0,0,0,0,0],upi:0,billed:0,walk:0,exps:[],goodsIn:[],prodOrders:[],rawMats:[],notes:'',pinShow:false,pinVal:'',pinErr:'',pinRole:'',connected:false,reportDate:today(),aShop:'all',rcpForm:{name:'',cat:'Baking',yield:'',yieldUnit:'pcs',prep:'',bake:'',temp:'',ings:[],steps:[''],notes:'',shelf:'',storage:''},rcpAdding:false,rcpView:-1,orderDate:today(),pShop:'all',pRange:'30',giType:'bill',cashRetained:0,ordShop:0,ordItems:[],grnShop:0,grnType:'bill',grnItems:[],advOrders:[],advDate:today(),advCust:'',advProd:'',advQty:'',advUnit:'pcs',advCat:'Baking',advNotes:'',advShop:0,installMsg:null,execRptPeriod:'thisMonth',execRptFrom:'',execRptTo:''};
 
 function h(tag,cls,html){var e=document.createElement(tag);if(cls)e.className=cls;if(html!==undefined)e.innerHTML=html;return e}
 
@@ -1921,12 +1921,315 @@ function calcHealthScore(days){
   return{total:total,profit:{score:profitScore,margin:margin},revenue:{score:revScore,growth:revGrowth},cash:{score:cashScore,disc:discPct},expense:{score:expScore,diff:expDiff},traffic:{score:walkScore,growth:walkGrowth}};
 }
 
+// ═══ EXECUTIVE REPORT GENERATOR ═══
+function getExecDateRange(period){
+  var t=new Date(),y=t.getFullYear(),m=t.getMonth(),d=t.getDate();
+  var from,to,compFrom,compTo,label;
+  if(period==='thisWeek'){
+    var dow=t.getDay()||7;from=toISO(new Date(y,m,d-dow+1));to=today();
+    var pEnd=new Date(y,m,d-dow);var pStart=new Date(pEnd.getFullYear(),pEnd.getMonth(),pEnd.getDate()-6);
+    compFrom=toISO(pStart);compTo=toISO(pEnd);label='This Week';
+  }else if(period==='thisMonth'){
+    from=y+'-'+String(m+1).padStart(2,'0')+'-01';to=today();
+    var pm=m===0?11:m-1,py=m===0?y-1:y;
+    compFrom=py+'-'+String(pm+1).padStart(2,'0')+'-01';
+    var pmEnd=new Date(py,pm+1,0);compTo=toISO(pmEnd);label='This Month';
+  }else if(period==='lastMonth'){
+    var pm=m===0?11:m-1,py=m===0?y-1:y;
+    from=py+'-'+String(pm+1).padStart(2,'0')+'-01';to=toISO(new Date(py,pm+1,0));
+    var pp=pm===0?11:pm-1,ppy=pm===0?py-1:py;
+    compFrom=ppy+'-'+String(pp+1).padStart(2,'0')+'-01';compTo=toISO(new Date(ppy,pp+1,0));
+    label='Last Month';
+  }else{
+    from=S.execRptFrom||today();to=S.execRptTo||today();
+    var days=Math.round((new Date(to)-new Date(from))/(86400000))+1;
+    var cEnd=new Date(new Date(from).getTime()-86400000);
+    var cStart=new Date(cEnd.getTime()-(days-1)*86400000);
+    compFrom=toISO(cStart);compTo=toISO(cEnd);label=fmtD(from)+' - '+fmtD(to);
+  }
+  return{from:from,to:to,compFrom:compFrom,compTo:compTo,label:label};
+}
+
+function generateExecutiveReport(){
+  var range=getExecDateRange(S.execRptPeriod);
+  var allRecs=S.records.filter(function(r){return r.date>=range.from&&r.date<=range.to});
+  if(!allRecs.length){toast('No data for selected period');return}
+  var compRecs=S.records.filter(function(r){return r.date>=range.compFrom&&r.date<=range.compTo});
+  var grnRecs=S.grnRecords.filter(function(r){return r.date>=range.from&&r.date<=range.to});
+
+  // Aggregate data
+  var totRev=sf(allRecs,'totalBilled'),totExp=sf(allRecs,'totalExpenses'),totUpi=sf(allRecs,'upiReceived');
+  var totWalk=sf(allRecs,'walkIns'),totVen=sf(allRecs,'totalVendorPayments');
+  var totOpen=sf(allRecs,'openingTotal'),totClose=sf(allRecs,'closingTotal');
+  var totCashRetained=sf(allRecs,'cashRetained');
+  var grossProfit=totRev-totExp-totVen;var margin=totRev>0?(grossProfit/totRev*100):0;
+  var cashSales=totRev-totUpi;
+
+  // Comparison
+  var cRev=sf(compRecs,'totalBilled'),cExp=sf(compRecs,'totalExpenses'),cUpi=sf(compRecs,'upiReceived');
+  var cWalk=sf(compRecs,'walkIns'),cVen=sf(compRecs,'totalVendorPayments');
+  var cGross=cRev-cExp-cVen;var cMargin=cRev>0?(cGross/cRev*100):0;
+
+  // Days
+  var dateMap={};allRecs.forEach(function(r){dateMap[r.date]=true});
+  var dates=Object.keys(dateMap).sort();var numDays=dates.length;
+  var avgDailyRev=numDays>0?totRev/numDays:0;
+  var avgDailyWalk=numDays>0?totWalk/numDays:0;
+
+  // Per-shop data
+  var s0=allRecs.filter(function(r){return r.shop==0});
+  var s1=allRecs.filter(function(r){return r.shop==1});
+  var s0Rev=sf(s0,'totalBilled'),s1Rev=sf(s1,'totalBilled');
+  var s0Exp=sf(s0,'totalExpenses'),s1Exp=sf(s1,'totalExpenses');
+  var s0Upi=sf(s0,'upiReceived'),s1Upi=sf(s1,'upiReceived');
+  var s0Walk=sf(s0,'walkIns'),s1Walk=sf(s1,'walkIns');
+
+  // Expense breakdown
+  var expCats={};allRecs.forEach(function(r){(r.expenses||[]).forEach(function(e){var c=e.category||'Misc';if(!expCats[c])expCats[c]=0;expCats[c]+=Number(e.amount)||0})});
+  var expArr=[];for(var k in expCats)expArr.push({cat:k,amt:expCats[k]});
+  expArr.sort(function(a,b){return b.amt-a.amt});
+
+  // Product performance
+  var prodMap={};allRecs.forEach(function(r){(r.productOrders||[]).forEach(function(p){var key=p.product||'Unknown';if(!prodMap[key])prodMap[key]={name:key,cat:p.category||'',qty:0,unit:p.unit||'pcs',days:{}};prodMap[key].qty+=Number(p.qty)||0;prodMap[key].days[r.date]=true})});
+  var prodArr=[];for(var k in prodMap)prodArr.push({name:prodMap[k].name,cat:prodMap[k].cat,qty:prodMap[k].qty,unit:prodMap[k].unit,days:Object.keys(prodMap[k].days).length});
+  prodArr.sort(function(a,b){return b.qty-a.qty});
+
+  // Vendor data
+  var venMap={};allRecs.forEach(function(r){(r.vendorPayments||[]).forEach(function(v){var n=v.vendor||v.name||'Unknown';if(!venMap[n])venMap[n]={paid:0,goods:0};venMap[n].paid+=Number(v.amount)||0});(r.goodsInward||[]).forEach(function(g){var n=g.vendor||'Unknown';if(!venMap[n])venMap[n]={paid:0,goods:0};venMap[n].goods+=Number(g.amount)||0})});
+  grnRecs.forEach(function(r){(r.goodsInward||[]).forEach(function(g){var n=g.vendor||'Unknown';if(!venMap[n])venMap[n]={paid:0,goods:0};venMap[n].goods+=Number(g.amount)||0})});
+  var venArr=[];for(var k in venMap)venArr.push({name:k,paid:venMap[k].paid,goods:venMap[k].goods,bal:venMap[k].goods-venMap[k].paid});
+  venArr.sort(function(a,b){return b.bal-a.bal});
+
+  // Daily data for tables
+  var dailyData=[];
+  dates.forEach(function(d){
+    var dr=allRecs.filter(function(r){return r.date===d});
+    var d0=dr.filter(function(r){return r.shop==0}),d1=dr.filter(function(r){return r.shop==1});
+    dailyData.push({date:d,hwyRev:sf(d0,'totalBilled'),mainRev:sf(d1,'totalBilled'),
+      total:sf(dr,'totalBilled'),walk:sf(dr,'walkIns'),upi:sf(dr,'upiReceived'),
+      exp:sf(dr,'totalExpenses'),ven:sf(dr,'totalVendorPayments'),
+      open:sf(dr,'openingTotal'),close:sf(dr,'closingTotal')});
+  });
+
+  // Alerts
+  var alerts=[];
+  // Negative profit days
+  var negDays=dailyData.filter(function(d){return d.total-d.exp-d.ven<0});
+  if(negDays.length)alerts.push({sev:'high',icon:'\u26A0\uFE0F',msg:'<b>'+negDays.length+' day(s)</b> recorded a net loss. Review expenses on: '+negDays.map(function(d){return fmtD(d.date)}).join(', ')});
+  // Revenue decline
+  if(cRev>0&&totRev<cRev*0.9)alerts.push({sev:'high',icon:'\uD83D\uDCC9',msg:'Revenue declined <b>'+Math.abs(pctChange(totRev,cRev)).toFixed(1)+'%</b> compared to previous period'});
+  // Low margin
+  if(margin<10&&totRev>0)alerts.push({sev:'high',icon:'\uD83D\uDCB8',msg:'Profit margin is <b>'+margin.toFixed(1)+'%</b> — below the 10% minimum threshold'});
+  // Cash discrepancy
+  var totalDisc=0;dailyData.forEach(function(d){var expected=d.open+(d.total-d.upi)-d.exp;totalDisc+=Math.abs(d.close-expected)});
+  if(totalDisc>totRev*0.02&&totRev>0)alerts.push({sev:'medium',icon:'\uD83D\uDCB0',msg:'Cash discrepancy of <b>'+fmt(Math.round(totalDisc))+'</b> detected ('+((totalDisc/totRev)*100).toFixed(1)+'% of revenue)'});
+  // Single expense dominance
+  if(expArr.length&&expArr[0].amt>(totExp+totVen)*0.4)alerts.push({sev:'medium',icon:'\uD83D\uDCCA',msg:'<b>'+expArr[0].cat+'</b> accounts for '+(((expArr[0].amt)/(totExp+totVen))*100).toFixed(0)+'% of total costs — consider diversifying'});
+  // Low UPI
+  var upiPct=totRev>0?(totUpi/totRev*100):0;
+  if(upiPct<30&&totRev>0)alerts.push({sev:'low',icon:'\uD83D\uDCF1',msg:'UPI adoption at <b>'+upiPct.toFixed(0)+'%</b> — digital payments reduce cash handling risk'});
+  // Shop imbalance
+  if(s0Rev>0&&s1Rev>0){var gap=Math.abs(s0Rev-s1Rev)/Math.max(s0Rev,s1Rev)*100;if(gap>40)alerts.push({sev:'medium',icon:'\uD83C\uDFEA',msg:'<b>'+(s0Rev>s1Rev?'Highway':'Mainroad')+'</b> outperforms the other shop by '+gap.toFixed(0)+'% — investigate footfall and location factors'})}
+  // Outstanding vendor balance
+  var totalBal=venArr.reduce(function(s,v){return s+Math.max(0,v.bal)},0);
+  if(totalBal>10000)alerts.push({sev:'medium',icon:'\uD83D\uDCDD',msg:'Outstanding vendor payables: <b>'+fmt(Math.round(totalBal))+'</b>'});
+  // Walk-in decline
+  if(cWalk>0&&totWalk<cWalk*0.85)alerts.push({sev:'medium',icon:'\uD83D\uDEB6',msg:'Walk-in traffic dropped <b>'+Math.abs(pctChange(totWalk,cWalk)).toFixed(0)+'%</b> vs previous period'});
+  if(!alerts.length)alerts.push({sev:'good',icon:'\u2705',msg:'All key metrics are within healthy ranges. Keep up the great work!'});
+
+  // ── BUILD REPORT HTML ──
+  var rf=fmt;
+  var pct=function(v){return v.toFixed(1)+'%'};
+  var chg=function(cur,prev){var c=pctChange(cur,prev);return '<span style="color:'+(c>=0?'#16a34a':'#dc2626')+'">('+(c>=0?'+':'')+c.toFixed(1)+'%)</span>'};
+  var genDate=new Date().toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
+
+  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">';
+  html+='<title>Executive Report — Akshay Bakery</title>';
+  html+='<style>';
+  html+='*{margin:0;padding:0;box-sizing:border-box}';
+  html+='body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;color:#1a1a2e;background:#fff;line-height:1.6;font-size:13px}';
+  html+='.page{max-width:800px;margin:0 auto;padding:40px 32px}';
+  html+='.hdr{border-bottom:3px solid #0c3a2d;padding-bottom:20px;margin-bottom:30px;display:flex;justify-content:space-between;align-items:flex-end}';
+  html+='.hdr-left h1{font-size:22px;color:#0c3a2d;font-weight:800;letter-spacing:-0.5px}';
+  html+='.hdr-left h2{font-size:14px;color:#555;font-weight:400;margin-top:2px}';
+  html+='.hdr-right{text-align:right;font-size:11px;color:#777;line-height:1.8}';
+  html+='.hdr-right .period{font-size:13px;color:#0c3a2d;font-weight:700}';
+  html+='.section{margin-bottom:28px}';
+  html+='.section-title{font-size:15px;font-weight:700;color:#0c3a2d;border-left:4px solid #0c3a2d;padding-left:10px;margin-bottom:14px;text-transform:uppercase;letter-spacing:0.5px}';
+  html+='.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px}';
+  html+='.kpi{border:1px solid #e5e7eb;border-radius:8px;padding:14px;text-align:center}';
+  html+='.kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#777;margin-bottom:4px}';
+  html+='.kpi-value{font-size:20px;font-weight:800;color:#1a1a2e}';
+  html+='.kpi-change{font-size:10px;margin-top:2px}';
+  html+='.kpi.green{border-left:3px solid #16a34a}.kpi.red{border-left:3px solid #dc2626}.kpi.blue{border-left:3px solid #2563eb}.kpi.amber{border-left:3px solid #d97706}';
+  html+='table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px}';
+  html+='th{background:#f3f4f6;font-weight:700;text-align:left;padding:8px 10px;border-bottom:2px solid #d1d5db;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:#555}';
+  html+='td{padding:7px 10px;border-bottom:1px solid #e5e7eb}';
+  html+='tr:nth-child(even){background:#fafbfc}';
+  html+='.num{text-align:right;font-variant-numeric:tabular-nums}';
+  html+='.total-row{font-weight:700;background:#f0fdf4 !important;border-top:2px solid #0c3a2d}';
+  html+='.bar-wrap{height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;min-width:60px}';
+  html+='.bar{height:100%;border-radius:4px}';
+  html+='.bar.g{background:#16a34a}.bar.b{background:#2563eb}.bar.a{background:#d97706}.bar.r{background:#dc2626}';
+  html+='.shop-compare{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:8px}';
+  html+='.shop-card{border:1px solid #e5e7eb;border-radius:8px;padding:16px}';
+  html+='.shop-card h4{font-size:13px;font-weight:700;color:#0c3a2d;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb}';
+  html+='.shop-row{display:flex;justify-content:space-between;padding:3px 0;font-size:12px}';
+  html+='.shop-row .lbl{color:#555}.shop-row .val{font-weight:600}';
+  html+='.alert{padding:10px 14px;border-radius:6px;margin-bottom:6px;font-size:12px;line-height:1.5;display:flex;align-items:flex-start;gap:8px}';
+  html+='.alert.high{background:#fef2f2;border-left:3px solid #dc2626}';
+  html+='.alert.medium{background:#fffbeb;border-left:3px solid #d97706}';
+  html+='.alert.low{background:#eff6ff;border-left:3px solid #2563eb}';
+  html+='.alert.good{background:#f0fdf4;border-left:3px solid #16a34a}';
+  html+='.pnl-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px}';
+  html+='.pnl-row.head{font-weight:700;border-bottom:2px solid #0c3a2d;font-size:14px}';
+  html+='.pnl-row.sub{padding-left:20px;color:#555;font-size:12px}';
+  html+='.pnl-row.total{font-weight:700;border-top:2px solid #0c3a2d;border-bottom:none;font-size:14px;padding-top:8px;margin-top:4px}';
+  html+='.pnl-row.total.green .val{color:#16a34a}.pnl-row.total.red .val{color:#dc2626}';
+  html+='.footer{margin-top:40px;padding-top:16px;border-top:1px solid #d1d5db;text-align:center;font-size:10px;color:#999;line-height:1.8}';
+  html+='@media print{body{font-size:11px}th{font-size:9px}.page{padding:20px}.kpi-value{font-size:17px}.section{page-break-inside:avoid}@page{margin:12mm 15mm;size:A4}}';
+  html+='</style></head><body><div class="page">';
+
+  // ── HEADER ──
+  html+='<div class="hdr"><div class="hdr-left"><h1>AKSHAY BAKERY</h1><h2>Executive Business Report</h2></div>';
+  html+='<div class="hdr-right"><div class="period">'+range.label+'</div>';
+  html+=fmtD(range.from)+' \u2014 '+fmtD(range.to)+'<br>Generated: '+genDate+'<br>'+numDays+' operating day(s)</div></div>';
+
+  // ── EXECUTIVE SUMMARY ──
+  html+='<div class="section"><div class="section-title">Executive Summary</div>';
+  html+='<div class="kpi-grid">';
+  html+='<div class="kpi green"><div class="kpi-label">Total Revenue</div><div class="kpi-value">'+rf(Math.round(totRev))+'</div><div class="kpi-change">'+chg(totRev,cRev)+' vs prev</div></div>';
+  html+='<div class="kpi red"><div class="kpi-label">Total Costs</div><div class="kpi-value">'+rf(Math.round(totExp+totVen))+'</div><div class="kpi-change">'+chg(totExp+totVen,cExp+cVen)+' vs prev</div></div>';
+  html+='<div class="kpi '+(grossProfit>=0?'green':'red')+'"><div class="kpi-label">Gross Profit</div><div class="kpi-value">'+rf(Math.round(grossProfit))+'</div><div class="kpi-change">'+chg(grossProfit,cGross)+' vs prev</div></div>';
+  html+='<div class="kpi '+(margin>=15?'green':margin>=5?'amber':'red')+'"><div class="kpi-label">Profit Margin</div><div class="kpi-value">'+pct(margin)+'</div><div class="kpi-change">prev: '+pct(cMargin)+'</div></div>';
+  html+='<div class="kpi blue"><div class="kpi-label">Avg Daily Revenue</div><div class="kpi-value">'+rf(Math.round(avgDailyRev))+'</div><div class="kpi-change">'+numDays+' days</div></div>';
+  html+='<div class="kpi blue"><div class="kpi-label">Total Footfall</div><div class="kpi-value">'+totWalk.toLocaleString('en-IN')+'</div><div class="kpi-change">'+chg(totWalk,cWalk)+' vs prev</div></div>';
+  html+='</div></div>';
+
+  // ── REVENUE ANALYSIS ──
+  html+='<div class="section"><div class="section-title">Revenue Analysis</div>';
+  // Shop comparison
+  html+='<div class="shop-compare">';
+  html+='<div class="shop-card"><h4>\uD83D\uDFE2 Highway Branch</h4>';
+  html+='<div class="shop-row"><span class="lbl">Revenue</span><span class="val">'+rf(Math.round(s0Rev))+'</span></div>';
+  html+='<div class="shop-row"><span class="lbl">Expenses</span><span class="val">'+rf(Math.round(s0Exp))+'</span></div>';
+  html+='<div class="shop-row"><span class="lbl">UPI Collection</span><span class="val">'+rf(Math.round(s0Upi))+'</span></div>';
+  html+='<div class="shop-row"><span class="lbl">Walk-ins</span><span class="val">'+s0Walk+'</span></div>';
+  html+='<div class="shop-row"><span class="lbl">Revenue Share</span><span class="val">'+(totRev>0?pct(s0Rev/totRev*100):'-')+'</span></div>';
+  html+='</div>';
+  html+='<div class="shop-card"><h4>\uD83D\uDD35 Mainroad Branch</h4>';
+  html+='<div class="shop-row"><span class="lbl">Revenue</span><span class="val">'+rf(Math.round(s1Rev))+'</span></div>';
+  html+='<div class="shop-row"><span class="lbl">Expenses</span><span class="val">'+rf(Math.round(s1Exp))+'</span></div>';
+  html+='<div class="shop-row"><span class="lbl">UPI Collection</span><span class="val">'+rf(Math.round(s1Upi))+'</span></div>';
+  html+='<div class="shop-row"><span class="lbl">Walk-ins</span><span class="val">'+s1Walk+'</span></div>';
+  html+='<div class="shop-row"><span class="lbl">Revenue Share</span><span class="val">'+(totRev>0?pct(s1Rev/totRev*100):'-')+'</span></div>';
+  html+='</div></div>';
+  // Daily revenue table
+  html+='<table><thead><tr><th>Date</th><th class="num">Highway</th><th class="num">Mainroad</th><th class="num">Combined</th><th class="num">Walk-ins</th></tr></thead><tbody>';
+  dailyData.forEach(function(d){
+    html+='<tr><td>'+fmtD(d.date)+'</td><td class="num">'+rf(Math.round(d.hwyRev))+'</td><td class="num">'+rf(Math.round(d.mainRev))+'</td><td class="num"><b>'+rf(Math.round(d.total))+'</b></td><td class="num">'+d.walk+'</td></tr>';
+  });
+  html+='<tr class="total-row"><td>Total</td><td class="num">'+rf(Math.round(s0Rev))+'</td><td class="num">'+rf(Math.round(s1Rev))+'</td><td class="num">'+rf(Math.round(totRev))+'</td><td class="num">'+totWalk+'</td></tr>';
+  html+='</tbody></table></div>';
+
+  // ── PROFIT & LOSS ──
+  html+='<div class="section"><div class="section-title">Profit & Loss Statement</div>';
+  var cogs=0;expArr.forEach(function(e){if(e.cat==='Vendor Payment'||e.cat==='Raw Materials')cogs+=e.amt});
+  cogs+=totVen;
+  var opex=totExp-cogs+totVen;if(opex<0)opex=0;
+  // If cogs double counts, let's be more precise
+  cogs=totVen;var opExpenses=totExp;
+  var netProfit=totRev-opExpenses-cogs;
+  html+='<div style="max-width:500px">';
+  html+='<div class="pnl-row head"><span>Revenue</span><span class="val">'+rf(Math.round(totRev))+'</span></div>';
+  html+='<div class="pnl-row sub"><span>UPI Payments</span><span>'+rf(Math.round(totUpi))+'</span></div>';
+  html+='<div class="pnl-row sub"><span>Cash Sales</span><span>'+rf(Math.round(cashSales))+'</span></div>';
+  html+='<div class="pnl-row head" style="margin-top:8px"><span>Less: Cost of Goods (Vendor)</span><span class="val">('+rf(Math.round(cogs))+')</span></div>';
+  venArr.slice(0,5).forEach(function(v){if(v.goods>0)html+='<div class="pnl-row sub"><span>'+v.name+'</span><span>'+rf(Math.round(v.goods))+'</span></div>'});
+  html+='<div class="pnl-row total '+(totRev-cogs>=0?'green':'red')+'"><span>Gross Profit</span><span class="val">'+rf(Math.round(totRev-cogs))+'</span></div>';
+  html+='<div class="pnl-row head" style="margin-top:8px"><span>Less: Operating Expenses</span><span class="val">('+rf(Math.round(opExpenses))+')</span></div>';
+  expArr.slice(0,6).forEach(function(e){html+='<div class="pnl-row sub"><span>'+e.cat+'</span><span>'+rf(Math.round(e.amt))+'</span></div>'});
+  html+='<div class="pnl-row total '+(netProfit>=0?'green':'red')+'"><span>Net Operating Profit</span><span class="val">'+rf(Math.round(netProfit))+'</span></div>';
+  html+='<div class="pnl-row sub"><span>Net Margin</span><span>'+(totRev>0?pct(netProfit/totRev*100):'-')+'</span></div>';
+  html+='</div></div>';
+
+  // ── EXPENSE ANALYSIS ──
+  html+='<div class="section"><div class="section-title">Expense Breakdown</div>';
+  var totalCost=totExp+totVen;
+  html+='<table><thead><tr><th>Category</th><th class="num">Amount</th><th class="num">% of Total</th><th style="width:120px">Distribution</th></tr></thead><tbody>';
+  if(totVen>0){var vPct=totalCost>0?(totVen/totalCost*100):0;html+='<tr><td>Vendor Payments</td><td class="num">'+rf(Math.round(totVen))+'</td><td class="num">'+pct(vPct)+'</td><td><div class="bar-wrap"><div class="bar b" style="width:'+vPct+'%"></div></div></td></tr>'}
+  expArr.forEach(function(e){var p=totalCost>0?(e.amt/totalCost*100):0;html+='<tr><td>'+e.cat+'</td><td class="num">'+rf(Math.round(e.amt))+'</td><td class="num">'+pct(p)+'</td><td><div class="bar-wrap"><div class="bar '+(p>30?'r':p>20?'a':'g')+'" style="width:'+Math.min(p,100)+'%"></div></div></td></tr>'});
+  html+='<tr class="total-row"><td>Total</td><td class="num">'+rf(Math.round(totalCost))+'</td><td class="num">100%</td><td></td></tr>';
+  html+='</tbody></table></div>';
+
+  // ── CASH FLOW ──
+  html+='<div class="section"><div class="section-title">Cash Flow Analysis</div>';
+  html+='<div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">';
+  html+='<div class="kpi blue"><div class="kpi-label">UPI Collection</div><div class="kpi-value" style="font-size:16px">'+rf(Math.round(totUpi))+'</div><div class="kpi-change">'+pct(upiPct)+' of revenue</div></div>';
+  html+='<div class="kpi green"><div class="kpi-label">Cash Sales</div><div class="kpi-value" style="font-size:16px">'+rf(Math.round(cashSales))+'</div><div class="kpi-change">'+pct(100-upiPct)+' of revenue</div></div>';
+  html+='<div class="kpi amber"><div class="kpi-label">Cash Retained</div><div class="kpi-value" style="font-size:16px">'+rf(Math.round(totCashRetained))+'</div></div>';
+  html+='<div class="kpi"><div class="kpi-label">Cash Discrepancy</div><div class="kpi-value" style="font-size:16px">'+rf(Math.round(totalDisc))+'</div></div>';
+  html+='</div>';
+  html+='<table><thead><tr><th>Date</th><th class="num">Opening</th><th class="num">Cash In</th><th class="num">UPI</th><th class="num">Expenses</th><th class="num">Closing</th></tr></thead><tbody>';
+  dailyData.forEach(function(d){
+    html+='<tr><td>'+fmtD(d.date)+'</td><td class="num">'+rf(Math.round(d.open))+'</td><td class="num">'+rf(Math.round(d.total-d.upi))+'</td><td class="num">'+rf(Math.round(d.upi))+'</td><td class="num">'+rf(Math.round(d.exp))+'</td><td class="num">'+rf(Math.round(d.close))+'</td></tr>';
+  });
+  html+='</tbody></table></div>';
+
+  // ── PRODUCT PERFORMANCE ──
+  if(prodArr.length){
+    html+='<div class="section"><div class="section-title">Product Performance</div>';
+    html+='<table><thead><tr><th>#</th><th>Product</th><th>Category</th><th class="num">Total Qty</th><th>Unit</th><th class="num">Days Ordered</th><th style="width:100px">Volume</th></tr></thead><tbody>';
+    var maxQty=prodArr.length?prodArr[0].qty:1;
+    prodArr.slice(0,15).forEach(function(p,i){
+      var barW=maxQty>0?(p.qty/maxQty*100):0;
+      html+='<tr><td>'+(i+1)+'</td><td><b>'+p.name+'</b></td><td>'+p.cat+'</td><td class="num">'+p.qty+'</td><td>'+p.unit+'</td><td class="num">'+p.days+'/'+numDays+'</td><td><div class="bar-wrap"><div class="bar g" style="width:'+barW+'%"></div></div></td></tr>';
+    });
+    html+='</tbody></table></div>';
+  }
+
+  // ── VENDOR PAYABLES ──
+  if(venArr.length){
+    html+='<div class="section"><div class="section-title">Vendor Payables</div>';
+    html+='<table><thead><tr><th>Vendor</th><th class="num">Goods Received</th><th class="num">Payments Made</th><th class="num">Balance</th></tr></thead><tbody>';
+    venArr.forEach(function(v){
+      html+='<tr><td>'+v.name+'</td><td class="num">'+rf(Math.round(v.goods))+'</td><td class="num">'+rf(Math.round(v.paid))+'</td><td class="num" style="color:'+(v.bal>0?'#dc2626':'#16a34a')+'"><b>'+rf(Math.round(v.bal))+'</b></td></tr>';
+    });
+    var tGoods=venArr.reduce(function(s,v){return s+v.goods},0),tPaid=venArr.reduce(function(s,v){return s+v.paid},0),tBal=venArr.reduce(function(s,v){return s+v.bal},0);
+    html+='<tr class="total-row"><td>Total</td><td class="num">'+rf(Math.round(tGoods))+'</td><td class="num">'+rf(Math.round(tPaid))+'</td><td class="num">'+rf(Math.round(tBal))+'</td></tr>';
+    html+='</tbody></table></div>';
+  }
+
+  // ── AREAS NEEDING ATTENTION ──
+  html+='<div class="section"><div class="section-title">Key Areas Requiring Attention</div>';
+  alerts.forEach(function(a){html+='<div class="alert '+a.sev+'"><span>'+a.icon+'</span><span>'+a.msg+'</span></div>'});
+  html+='</div>';
+
+  // ── FOOTER ──
+  html+='<div class="footer">CONFIDENTIAL \u2014 For Internal Use Only<br>Akshay Bakery \u2022 Executive Business Report \u2022 '+genDate+'<br>Report Period: '+fmtD(range.from)+' to '+fmtD(range.to)+'</div>';
+
+  html+='</div></body></html>';
+
+  var w=window.open('','_blank');
+  if(!w){toast('Please allow pop-ups to generate the report');return}
+  w.document.write(html);w.document.close();
+}
+
 function renderAnalytics(){
   var shop=S.aShop;
   var allRecs=aRecs(shop==='all'?shop:parseInt(shop));
   var days=aDayAgg(allRecs);
   // Shop toggle
   var out='<div class="biz-shop-toggle"><button class="biz-shop-btn'+(shop==='all'?' on':'')+'" data-ashop="all">All Shops</button><button class="biz-shop-btn'+(shop==='0'?' on':'')+'" data-ashop="0">Highway</button><button class="biz-shop-btn'+(shop==='1'?' on':'')+'" data-ashop="1">Mainroad</button></div>';
+
+  // Executive Report Generator
+  out+='<div class="card" style="margin-bottom:16px"><div class="ch"><div class="ci g">\uD83D\uDCCB</div><div><div class="ct">Executive Business Report</div><div style="font-size:11px;color:var(--text2)">Generate a professional report for print or PDF</div></div></div>';
+  out+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0">';
+  var rps=[['thisWeek','This Week'],['thisMonth','This Month'],['lastMonth','Last Month'],['custom','Custom']];
+  for(var ri=0;ri<rps.length;ri++){out+='<button class="rcp-sub-cat'+(S.execRptPeriod===rps[ri][0]?' on':'')+'" data-execrpt="'+rps[ri][0]+'">'+rps[ri][1]+'</button>'}
+  out+='</div>';
+  if(S.execRptPeriod==='custom'){out+='<div style="display:flex;gap:8px;margin-bottom:10px"><input class="fi" type="date" id="execRptFrom" value="'+S.execRptFrom+'" style="flex:1"><input class="fi" type="date" id="execRptTo" value="'+S.execRptTo+'" style="flex:1"></div>'}
+  out+='<button class="save-btn" id="btnGenExecRpt" style="width:100%">\uD83D\uDCC4 Generate Report</button></div>';
 
   if(days.length<3){return out+'<div class="es"><div class="esi">\uD83E\uDDE0</div><div class="est">Need at least 3 days of data for analytics.<br>Keep entering daily records!</div></div>'}
 
@@ -2277,6 +2580,10 @@ function bindEvents(){
 
   // Analytics shop toggle
   document.querySelectorAll('[data-ashop]').forEach(function(b){b.onclick=function(){S.aShop=b.dataset.ashop;render()}});
+  document.querySelectorAll('[data-execrpt]').forEach(function(b){b.onclick=function(){S.execRptPeriod=b.dataset.execrpt;render()}});
+  var erf=document.getElementById('execRptFrom');if(erf)erf.onchange=function(){S.execRptFrom=erf.value};
+  var ert=document.getElementById('execRptTo');if(ert)ert.onchange=function(){S.execRptTo=ert.value};
+  var ger=document.getElementById('btnGenExecRpt');if(ger)ger.onclick=generateExecutiveReport;
   document.querySelectorAll('[data-pshop]').forEach(function(b){b.onclick=function(){S.pShop=b.dataset.pshop;render()}});
   document.querySelectorAll('[data-prange]').forEach(function(b){b.onclick=function(){S.pRange=b.dataset.prange;render()}});
   // Report date nav
