@@ -480,6 +480,13 @@ function resetSessionTimer(){
   if(S.screen==='app')_sessionTimer=setTimeout(function(){S.screen='login';S.role=null;S.staffShop=-1;S.tab=0;S.shop=0;S.records=[];toast('\u23F0 Session expired \u2014 please login again');render()},30*60*1000)
 }
 ['click','touchstart','keydown'].forEach(function(ev){document.addEventListener(ev,resetSessionTimer,{passive:true})});
+// Auto-sync: refresh data every 2 minutes so changes from other logins are visible
+var _syncInterval=null;
+function startAutoSync(){
+  if(_syncInterval)clearInterval(_syncInterval);
+  _syncInterval=setInterval(function(){if(S.screen==='app'&&!S.saving&&navigator.onLine)doFetch()},2*60*1000)
+}
+function stopAutoSync(){if(_syncInterval){clearInterval(_syncInterval);_syncInterval=null}}
 // CSV export
 function exportCSV(){
   var rows=[['Date','Shop','Opening','Closing','UPI','Billed','Walk-ins','Expenses','Vendors','Goods Inward','Cash Retained','Notes','Saved By']];
@@ -1595,15 +1602,17 @@ function formatOrderForWhatsApp(){
   return msg;
 }
 
-function renderOrderingHistory(){
-  var out='<div class="fg" style="margin-bottom:12px"><div class="fl">View Date</div><input class="fi" type="date" id="ordHistDate" value="'+S.orderDate+'"></div>';
-  // Show orders from both shops for this date
-  var recs0=recsForDateShop(S.orderDate,0);
-  var recs1=recsForDateShop(S.orderDate,1);
+function collectProductOrders(dt){
+  var recs0=recsForDateShop(dt,0),recs1=recsForDateShop(dt,1);
   var orders0=[],orders1=[];
   for(var i=0;i<recs0.length;i++){var po=recs0[i].productOrders||[];for(var j=0;j<po.length;j++)orders0.push(po[j])}
   for(var i=0;i<recs1.length;i++){var po=recs1[i].productOrders||[];for(var j=0;j<po.length;j++)orders1.push(po[j])}
-  var allOrders=orders0.concat(orders1);
+  for(var i=0;i<(S.prodOrderRecords||[]).length;i++){var por=S.prodOrderRecords[i];if(por.date===dt){var pOrds=por.productOrders||[];for(var j=0;j<pOrds.length;j++){var dup=false;var tgt=parseInt(por.shop)===0?orders0:orders1;for(var m=0;m<tgt.length;m++){if(tgt[m].id===pOrds[j].id){dup=true;break}}if(!dup)tgt.push(pOrds[j])}}}
+  return{orders0:orders0,orders1:orders1,all:orders0.concat(orders1)}
+}
+function renderOrderingHistory(){
+  var out='<div class="fg" style="margin-bottom:12px"><div class="fl">View Date</div><input class="fi" type="date" id="ordHistDate" value="'+S.orderDate+'"></div>';
+  var cp=collectProductOrders(S.orderDate);var orders0=cp.orders0,orders1=cp.orders1,allOrders=cp.all;
   if(!allOrders.length){return out+'<div class="es"><div class="esi">\uD83D\uDCCB</div><div class="est">No orders found for this date.</div></div>'}
   var totalQty=0;for(var i=0;i<allOrders.length;i++)totalQty+=allOrders[i].qty||0;
   out+='<div class="order-summary"><div class="order-summary-grid"><div class="order-summary-item"><div class="order-summary-val">'+allOrders.length+'</div><div class="order-summary-lbl">Items</div></div><div class="order-summary-item"><div class="order-summary-val">'+totalQty+'</div><div class="order-summary-lbl">Total Qty</div></div></div></div>';
@@ -1744,12 +1753,7 @@ function renderAdvanceOrders(){
 function renderProductionOrders(){
   var out='<div class="fg" style="margin-bottom:12px"><div class="fl">Date</div><input class="fi" type="date" id="prodOrderDate" value="'+S.orderDate+'"></div>';
 
-  var recs0=recsForDateShop(S.orderDate,0);
-  var recs1=recsForDateShop(S.orderDate,1);
-  var orders0=[],orders1=[];
-  for(var i=0;i<recs0.length;i++){var po=recs0[i].productOrders||[];for(var j=0;j<po.length;j++)orders0.push(po[j])}
-  for(var i=0;i<recs1.length;i++){var po=recs1[i].productOrders||[];for(var j=0;j<po.length;j++)orders1.push(po[j])}
-  var allOrders=orders0.concat(orders1);
+  var cp=collectProductOrders(S.orderDate);var orders0=cp.orders0,orders1=cp.orders1,allOrders=cp.all;
   var totalQty=0;for(var i=0;i<allOrders.length;i++)totalQty+=allOrders[i].qty||0;
 
   out+='<div class="order-summary"><div class="order-summary-grid"><div class="order-summary-item"><div class="order-summary-val">'+allOrders.length+'</div><div class="order-summary-lbl">Total Items</div></div><div class="order-summary-item"><div class="order-summary-val">'+totalQty+'</div><div class="order-summary-lbl">Total Qty</div></div><div class="order-summary-item"><div class="order-summary-val">2</div><div class="order-summary-lbl">Shops</div></div></div></div>';
@@ -3006,10 +3010,10 @@ function bindEvents(){
   var cih=document.getElementById('closeInstallHelp');if(cih)cih.onclick=function(){S.installMsg=null;render()};
   var pi=document.getElementById('pinInp');if(pi)pi.oninput=function(e){S.pinVal=e.target.value};
   var pc=document.getElementById('pinCancel');if(pc)pc.onclick=function(){S.pinShow=false;render()};
-  var pk=document.getElementById('pinOk');if(pk)pk.onclick=function(){callApi('verifyPin',{pin:S.pinVal,role:S.pinRole}).then(function(r){if(r.valid){S.pinShow=false;if(S.pinRole==='owner'){S.role='owner';S.staffShop=-1;S.shop=0}else if(S.pinRole==='highway'){S.role='staff';S.staffShop=0;S.shop=0}else if(S.pinRole==='mainroad'){S.role='staff';S.staffShop=1;S.shop=1}else if(S.pinRole==='production'){S.role='production';S.staffShop=-1;S.shop=0}else if(S.pinRole==='ordering'){S.role='ordering';S.staffShop=-1;S.shop=0}S.screen='app';S.tab=0;doFetch()}else{S.pinErr='Wrong password';render()}}).catch(function(e){S.pinErr=e.message;render()})};
+  var pk=document.getElementById('pinOk');if(pk)pk.onclick=function(){callApi('verifyPin',{pin:S.pinVal,role:S.pinRole}).then(function(r){if(r.valid){S.pinShow=false;if(S.pinRole==='owner'){S.role='owner';S.staffShop=-1;S.shop=0}else if(S.pinRole==='highway'){S.role='staff';S.staffShop=0;S.shop=0}else if(S.pinRole==='mainroad'){S.role='staff';S.staffShop=1;S.shop=1}else if(S.pinRole==='production'){S.role='production';S.staffShop=-1;S.shop=0}else if(S.pinRole==='ordering'){S.role='ordering';S.staffShop=-1;S.shop=0}S.screen='app';S.tab=0;startAutoSync();doFetch()}else{S.pinErr='Wrong password';render()}}).catch(function(e){S.pinErr=e.message;render()})};
   document.querySelectorAll('[data-tab]').forEach(function(b){b.onclick=function(){S.tab=parseInt(b.dataset.tab);if(S.tab===0)loadForm();render()}});
   var sy=document.getElementById('btnSync');if(sy)sy.onclick=function(){doFetch()};
-  var lo=document.getElementById('btnLogout');if(lo)lo.onclick=function(){S.screen='login';S.role=null;S.staffShop=-1;S.tab=0;S.shop=0;S.date=today();S.records=[];S.staffLogs=[];S.activityLogs=[];S.recipes=[];S.rawMatRecords=[];S.grnRecords=[];S.advOrders=[];S.prodOrderRecords=[];S.oc=[0,0,0,0,0,0,0];S.cc=[0,0,0,0,0,0,0];S.upi=0;S.billed=0;S.walk=0;S.exps=[];S.goodsIn=[];S.prodOrders=[];S.rawMats=[];S.notes='';S.cashRetained=0;S.ordItems=[];S.grnItems=[];S.advItems=[];render()};
+  var lo=document.getElementById('btnLogout');if(lo)lo.onclick=function(){stopAutoSync();S.screen='login';S.role=null;S.staffShop=-1;S.tab=0;S.shop=0;S.date=today();S.records=[];S.staffLogs=[];S.activityLogs=[];S.recipes=[];S.rawMatRecords=[];S.grnRecords=[];S.advOrders=[];S.prodOrderRecords=[];S.oc=[0,0,0,0,0,0,0];S.cc=[0,0,0,0,0,0,0];S.upi=0;S.billed=0;S.walk=0;S.exps=[];S.goodsIn=[];S.prodOrders=[];S.rawMats=[];S.notes='';S.cashRetained=0;S.ordItems=[];S.grnItems=[];S.advItems=[];render()};
   var di=document.getElementById('dateInp');if(di)di.onchange=function(e){S.date=e.target.value;loadForm();render()};
   var si2=document.getElementById('shopInp');if(si2)si2.onchange=function(e){S.shop=parseInt(e.target.value);loadForm();render()};
   var ui=document.getElementById('upiInp');if(ui)ui.oninput=function(e){S.upi=parseInt(e.target.value)||0};
