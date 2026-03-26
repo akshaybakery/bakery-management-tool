@@ -139,7 +139,9 @@ function saveEntry(entry) {
     for (let i = data.length - 1; i >= 1; i--) {
       var sheetDate = data[i][dateCol] instanceof Date ? Utilities.formatDate(data[i][dateCol], Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(data[i][dateCol]).substring(0,10);
       var rowType = typeCol >= 0 ? String(data[i][typeCol] || '') : '';
-      if (entry.type === 'advanceOrder' || entry.type === 'recipe' || entry.type === 'rawMaterial' || entry.type === 'goodsInward') {
+      if (entry.type === 'activityLog' || entry.type === 'staffLog') {
+        // Activity logs and staff logs are never overwritten — always append
+      } else if (entry.type === 'advanceOrder' || entry.type === 'recipe' || entry.type === 'rawMaterial' || entry.type === 'goodsInward') {
         if (idCol >= 0 && data[i][idCol] === entry.id) {
           sheet.deleteRow(i + 1);
         }

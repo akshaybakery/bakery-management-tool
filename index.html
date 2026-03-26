@@ -256,7 +256,7 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
 .biz-dow-day{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase}
 .biz-dow-val{font-size:12px;font-weight:700;margin-top:2px}
 .biz-shop-toggle{display:flex;gap:4px;margin-bottom:12px}
-.biz-shop-btn{flex:1;padding:8px;border:1.5px solid var(--border);border-radius:var(--rs);font-size:11px;font-weight:600;cursor:pointer;text-align:center;background:var(--card)}
+.biz-shop-btn{flex:1;padding:8px;border:1.5px solid var(--border);border-radius:var(--rs);font-size:11px;font-weight:600;cursor:pointer;text-align:center;background:var(--card);color:var(--text)}
 .biz-shop-btn.on{background:var(--gd);color:#fff;border-color:var(--gd)}
 
 /* ===== PRODUCTION TAB ===== */
@@ -396,9 +396,10 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
 .ac-opt:last-child{border-bottom:none}
 .ac-opt:active,.ac-opt:hover{background:var(--gl);color:var(--green)}
 /* Dark mode */
-.dark{--bg:#1a1a1a;--card:#242424;--border:#3a3a3a;--text:#e8e4de;--text2:#a09888;--text3:#706858;--gl:#0d2e1e;--gd:#4ade80;--al:#3a2800;--rl:#3a1515;--bl:#152040;--pl:#2a1548;--tl:#0a3028}
+.dark{--bg:#1a1a1a;--card:#242424;--border:#3a3a3a;--text:#e8e4de;--text2:#b8ad9f;--text3:#9a9080;--green:#4ade80;--gl:#0d2e1e;--gd:#4ade80;--amber:#f0b429;--al:#2e2200;--rose:#f87171;--rl:#3a1515;--blue:#60a5fa;--bl:#152040;--purple:#a78bfa;--pl:#2a1548;--teal:#2dd4bf;--tl:#0a3028}
 .dark .login-screen{background:linear-gradient(165deg,#0a2018,#0d3a28,#1a5040)}
 .dark .fi{background:var(--card);color:var(--text)}
+.dark .fi:disabled,.dark .fi[disabled]{background:#2a2a2a!important;color:var(--text2)!important}
 .dark .save-btn{background:linear-gradient(135deg,#1a5040,#2d8a63)}
 .dark .order-summary{background:linear-gradient(135deg,#0a2018,#1a5040)}
 .dark .ven-totals,.dark .rpt-combined{background:linear-gradient(135deg,#0a2018,#1a5040)}
@@ -406,6 +407,35 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
 .dark .tab-btn.on{background:var(--card);color:var(--gd)}
 .dark .modal{background:var(--card)}
 .dark .pin-input{background:var(--bg);color:var(--text);border-color:var(--border)}
+.dark .sc{background:#0d2e1e;border-color:#1a5040}
+.dark .st{color:#4ade80}
+.dark .sd{border-color:#1a5040}
+.dark .ins{background:linear-gradient(135deg,#0d2e1e,#0a2018);border-color:#1a5040}
+.dark .inst{color:#4ade80}
+.dark .insi{color:#b8ad9f}
+.dark .wb{background:#2e2200;border-color:#5a4400}
+.dark .wb span{color:#f0b429}
+.dark .rpt-insights-title{color:#f0b429!important}
+.dark .rpt-insight-item{color:#b8ad9f!important}
+.dark .hb.s0{background:#0d2e1e;color:#4ade80}
+.dark .hb.s1{background:#152040;color:#60a5fa}
+.dark .biz-rec.critical{background:#3a1515}
+.dark .biz-rec.high{background:#2e2200}
+.dark .biz-rec.medium{background:#152040}
+.dark .biz-rec.good{background:#0d2e1e}
+.dark .dt{color:#4ade80;background:#0d2e1e}
+.dark .rpt-shop-card{background:var(--card);border-color:var(--border)}
+.dark .rpt-shop-card.s0 .rpt-shop-label{color:#4ade80}
+.dark .rpt-shop-card.s1 .rpt-shop-label{color:#60a5fa}
+.dark .btn-cancel{background:var(--bg);color:var(--text2)}
+.dark .il{background:var(--bg)}
+.dark .toast{background:#2d8a63}
+.dark select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239a9080' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")}
+.dark .cb{color:#f87171;border-color:#5a2020}
+.dark .biz-dow-item{background:var(--bg)}
+.dark .biz-cf-box{background:var(--bg)}
+.dark select.fi option{background:var(--card);color:var(--text)}
+.dark .login-btn.staff{background:rgba(255,255,255,.15);color:#fff}
 /* Pull to refresh */
 .ptr-indicator{text-align:center;padding:0;height:0;overflow:hidden;transition:height .2s,padding .2s;font-size:12px;color:var(--text3);font-weight:600}
 .ptr-indicator.active{height:40px;padding:10px}
@@ -429,6 +459,11 @@ function gid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 function dTotal(a){var s=0;for(var i=0;i<a.length;i++)s+=a[i]*DV[i];return s}
 // XSS sanitization
 function esc(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+// Activity log for staff actions
+function logActivity(action,details){
+  var entry={id:gid(),type:'activityLog',action:action,details:details,savedBy:S.role||(S.staffShop>=0?'staff':'unknown'),shop:S.shop,date:S.date,savedAt:new Date().toISOString()};
+  callApi('save',{},entry).catch(function(){})
+}
 // Offline save queue
 var _offlineQueue=JSON.parse(localStorage.getItem('_offQ')||'[]');
 function flushOfflineQueue(){
@@ -540,7 +575,7 @@ function loadForm(){
 function doFetch(){
   S.loading=true;render();
   var params={};if(S.role==='staff')params.role='staff';
-  callApi('getAll',params).then(function(res){var d=res.data||[];S.records=[];S.staffLogs=[];S.recipes=[];S.rawMatRecords=[];S.grnRecords=[];S.advOrders=[];S.prodOrderRecords=[];for(var i=0;i<d.length;i++){parseRecord(d[i]);if(d[i].type==='recipe')S.recipes.push(d[i]);else if(d[i].type==='rawMaterial')S.rawMatRecords.push(d[i]);else if(d[i].type==='goodsInward')S.grnRecords.push(d[i]);else if(d[i].type==='advanceOrder')S.advOrders.push(d[i]);else if(d[i].type==='staffLog')S.staffLogs.push(d[i]);else if(d[i].type==='productOrder')S.prodOrderRecords.push(d[i]);else S.records.push(d[i])}S.connected=true;syncKnownNames();syncProductNames();flushOfflineQueue()}).catch(function(e){toast('\u274C '+e.message);S.connected=false}).then(function(){S.loading=false;loadForm();render();resetSessionTimer()})
+  callApi('getAll',params).then(function(res){var d=res.data||[];S.records=[];S.staffLogs=[];S.activityLogs=[];S.recipes=[];S.rawMatRecords=[];S.grnRecords=[];S.advOrders=[];S.prodOrderRecords=[];for(var i=0;i<d.length;i++){parseRecord(d[i]);if(d[i].type==='recipe')S.recipes.push(d[i]);else if(d[i].type==='rawMaterial')S.rawMatRecords.push(d[i]);else if(d[i].type==='goodsInward')S.grnRecords.push(d[i]);else if(d[i].type==='advanceOrder')S.advOrders.push(d[i]);else if(d[i].type==='staffLog')S.staffLogs.push(d[i]);else if(d[i].type==='activityLog')S.activityLogs.push(d[i]);else if(d[i].type==='productOrder')S.prodOrderRecords.push(d[i]);else S.records.push(d[i])}S.connected=true;syncKnownNames();syncProductNames();flushOfflineQueue()}).catch(function(e){toast('\u274C '+e.message);S.connected=false}).then(function(){S.loading=false;loadForm();render();resetSessionTimer()})
 }
 function toast(msg){var old=document.querySelector('.toast');if(old)old.remove();var t=h('div','toast',msg);document.body.appendChild(t);setTimeout(function(){if(t.parentNode)t.remove()},2500)}
 
@@ -664,7 +699,7 @@ function renderEntry(){
   out+='<div class="card"><div class="ch"><div class="ci r">\uD83D\uDCE4</div><div><div class="ct">Daily Expenses</div><div class="cs">Running costs</div></div></div>'+(S.exps.length?'<div class="il">'+expList+'</div>':'')+'<div class="fr c2"><div class="fg"><div class="fl">Description</div><input class="fi" type="text" id="expDesc" placeholder="e.g. Staff food" list="dlExpNames" autocomplete="off"></div><div class="fg"><div class="fl">Amount</div><div class="iw"><span class="ip">\u20B9</span><input class="fi wp" type="number" inputmode="numeric" id="expAmt" placeholder="0"></div></div></div><div class="ar" style="margin-top:8px"><div style="flex:1"><div class="fg"><div class="fl">Category</div><select class="fi" id="expCat">'+ECATS.map(function(c){return'<option>'+c+'</option>'}).join('')+'</select></div></div><button class="ab g" id="addExp">+ Add</button></div></div>';
   // Goods Inward section
   var giList='';var giTot=0;
-  for(var i=0;i<S.goodsIn.length;i++){var g=S.goodsIn[i];giTot+=(g.amount||0);var giDetail,giVal;if(g.entryType==='qty'){giDetail=g.qty+' '+(g.qtyUnit||'kg')+(g.rate?' @ '+fmt(g.rate)+'/'+g.qtyUnit:'')+(g.items?' \u2022 '+g.items:'');giVal=g.rate?'<span class="ia v">'+fmt(g.amount)+'</span>':'<div style="display:flex;align-items:center;gap:4px"><span style="font-size:10px;color:var(--text3)">\u20B9</span><input class="fi" type="number" inputmode="numeric" data-girate="'+i+'" value="'+(g.rate||'')+'" placeholder="Rate" style="width:60px;padding:4px 6px;font-size:12px"></div>'}else{giDetail=(g.items||'\u2014')+(g.billNo?' \u2022 Inv #'+g.billNo:'');giVal='<span class="ia v">'+fmt(g.amount)+'</span>'}giList+='<div class="ir"><div><div class="in">'+esc(g.vendor)+'</div><div class="ic">'+esc(giDetail)+'</div></div><div style="display:flex;align-items:center;gap:8px">'+giVal+(isO?'<button style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:10px;cursor:pointer;color:var(--text2)" data-editgi="'+i+'">\u270E</button>':'')+'<button class="ix" data-delgi="'+i+'">\u00D7</button></div></div>'}
+  for(var i=0;i<S.goodsIn.length;i++){var g=S.goodsIn[i];giTot+=(g.amount||0);var giDetail,giVal;if(g.entryType==='qty'){giDetail=g.qty+' '+(g.qtyUnit||'kg')+(g.rate?' @ '+fmt(g.rate)+'/'+g.qtyUnit:'')+(g.items?' \u2022 '+g.items:'');giVal=g.rate?'<span class="ia v">'+fmt(g.amount)+'</span>':'<div style="display:flex;align-items:center;gap:4px"><span style="font-size:10px;color:var(--text3)">\u20B9</span><input class="fi" type="number" inputmode="numeric" data-girate="'+i+'" value="'+(g.rate||'')+'" placeholder="Rate" style="width:60px;padding:4px 6px;font-size:12px"></div>'}else{giDetail=(g.items||'\u2014')+(g.billNo?' \u2022 Inv #'+g.billNo:'');giVal='<span class="ia v">'+fmt(g.amount)+'</span>'}giList+='<div class="ir"><div><div class="in">'+esc(g.vendor)+'</div><div class="ic">'+esc(giDetail)+'</div></div><div style="display:flex;align-items:center;gap:8px">'+giVal+'<button style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:10px;cursor:pointer;color:var(--text2)" data-editgi="'+i+'">\u270E</button><button class="ix" data-delgi="'+i+'">\u00D7</button></div></div>'}
   if(S.goodsIn.length)giList+='<div class="it"><span class="itl">Total Bills</span><span class="ia v">'+fmt(giTot)+'</span></div>';
   var giBill=S.giType==='bill',giQty=S.giType==='qty';
   out+='<div class="card"><div class="ch"><div class="ci t">\uD83D\uDCE6</div><div><div class="ct">Goods Inward</div><div class="cs">Stock arriving today</div></div></div>'+(S.goodsIn.length?'<div class="il">'+giList+'</div>':'');
@@ -1096,13 +1131,13 @@ function renderLedgerDaily(shopMatch,shopLabel){
 
   // Goods Inward for selected date
   var R=S.records;var dayGI=[];
-  for(var i=0;i<R.length;i++){if(R[i].date===dt&&shopMatch(R[i].shop)){var gi0=R[i].goodsInward||[];for(var j=0;j<gi0.length;j++)dayGI.push({vendor:gi0[j].vendor||'Unknown',items:gi0[j].items||'',amount:gi0[j].amount||0,shop:R[i].shop,billNo:gi0[j].billNo||'',entryType:gi0[j].entryType||'bill',qty:gi0[j].qty||0,qtyUnit:gi0[j].qtyUnit||''})}}
-  for(var i=0;i<(S.grnRecords||[]).length;i++){var gr0=S.grnRecords[i];if(gr0.date===dt&&shopMatch(gr0.shop)){var gi0b=gr0.goodsInward||[];for(var j=0;j<gi0b.length;j++){var dup0=false;for(var m=0;m<dayGI.length;m++){if(dayGI[m].id===gi0b[j].id){dup0=true;break}}if(!dup0)dayGI.push({id:gi0b[j].id,vendor:gi0b[j].vendor||'Unknown',items:gi0b[j].items||'',amount:gi0b[j].amount||0,shop:gr0.shop,billNo:gi0b[j].billNo||'',entryType:gi0b[j].entryType||'bill',qty:gi0b[j].qty||0,qtyUnit:gi0b[j].qtyUnit||''})}}}
+  for(var i=0;i<R.length;i++){if(R[i].date===dt&&shopMatch(R[i].shop)){var gi0=R[i].goodsInward||[];for(var j=0;j<gi0.length;j++)dayGI.push({vendor:gi0[j].vendor||'Unknown',items:gi0[j].items||'',amount:gi0[j].amount||0,shop:R[i].shop,billNo:gi0[j].billNo||'',entryType:gi0[j].entryType||'bill',qty:gi0[j].qty||0,qtyUnit:gi0[j].qtyUnit||'',recId:R[i].id,giIdx:j,source:'daily'})}}
+  for(var i=0;i<(S.grnRecords||[]).length;i++){var gr0=S.grnRecords[i];if(gr0.date===dt&&shopMatch(gr0.shop)){var gi0b=gr0.goodsInward||[];for(var j=0;j<gi0b.length;j++){var dup0=false;for(var m=0;m<dayGI.length;m++){if(dayGI[m].id===gi0b[j].id){dup0=true;break}}if(!dup0)dayGI.push({id:gi0b[j].id,vendor:gi0b[j].vendor||'Unknown',items:gi0b[j].items||'',amount:gi0b[j].amount||0,shop:gr0.shop,billNo:gi0b[j].billNo||'',entryType:gi0b[j].entryType||'bill',qty:gi0b[j].qty||0,qtyUnit:gi0b[j].qtyUnit||'',recId:gr0.id,giIdx:j,source:'grn'})}}}
 
   var giDayTot=0;for(var i=0;i<dayGI.length;i++)giDayTot+=dayGI[i].amount;
   if(dayGI.length){
     out+='<div class="card"><div class="ch"><div class="ci t">\uD83D\uDCE6</div><div><div class="ct">Goods Inward</div><div class="cs">'+fmtD(dt)+' \u2022 '+dayGI.length+' item'+(dayGI.length>1?'s':'')+'</div></div></div><div class="il">';
-    for(var i=0;i<dayGI.length;i++){var tg=dayGI[i];var det=tg.entryType==='qty'&&tg.qty?tg.qty+' '+tg.qtyUnit+(tg.items?' \u2022 '+tg.items:''):(tg.items||'\u2014')+(tg.billNo?' \u2022 Inv #'+tg.billNo:'');out+='<div class="ir"><div><div class="in">'+tg.vendor+'</div><div class="ic">'+det+' \u2022 '+SHOPS[tg.shop]+'</div></div><span class="ia v">'+fmt(tg.amount)+'</span></div>'}
+    for(var i=0;i<dayGI.length;i++){var tg=dayGI[i];var det=tg.entryType==='qty'&&tg.qty?tg.qty+' '+tg.qtyUnit+(tg.items?' \u2022 '+tg.items:''):(tg.items||'\u2014')+(tg.billNo?' \u2022 Inv #'+tg.billNo:'');var delGiData=JSON.stringify({recId:tg.recId,giIdx:tg.giIdx,source:tg.source||'daily'}).replace(/'/g,'&#39;');var delGiBtn='<button class="ix" data-delsavedgi=\''+delGiData+'\'>\u00D7</button>';out+='<div class="ir"><div><div class="in">'+esc(tg.vendor)+'</div><div class="ic">'+esc(det)+' \u2022 '+SHOPS[tg.shop]+'</div></div><div style="display:flex;align-items:center;gap:8px"><span class="ia v">'+fmt(tg.amount)+'</span>'+delGiBtn+'</div></div>'}
     out+='<div class="it"><span class="itl">Total Goods Inward</span><span class="ia v">'+fmt(giDayTot)+'</span></div></div></div>';
   }
 
@@ -1160,7 +1195,7 @@ function renderLedgerSummary(shopMatch,shopLabel,vMap){
       for(var j=0;j<allTxns.length;j++){
         var tx=allTxns[j];
         var editData=JSON.stringify({recId:tx.recId,type:tx.type,giIdx:tx.giIdx,expIdx:tx.expIdx,source:tx.source||'',amount:tx.amount,vendor:tx.vendor,items:tx.items||'',billNo:tx.billNo||''}).replace(/'/g,'&#39;');
-        var editBtn=isO?'<button style="margin-left:6px;background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:10px;cursor:pointer;color:var(--text2)" data-edittxn=\''+editData+'\'>\u270E</button>':'';
+        var editBtn='<button style="margin-left:6px;background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:10px;cursor:pointer;color:var(--text2)" data-edittxn=\''+editData+'\'>\u270E</button>';
         out+='<div class="ven-txn"><span class="ven-txn-date">'+fmtD(tx.date)+'</span><span class="ven-txn-desc">'+(tx.type==='bill'?'\uD83D\uDCE6 ':'\uD83D\uDCB0 ')+tx.desc+' \u2022 '+SHOPS[tx.shop]+'</span><span class="ven-txn-amt '+(tx.type==='bill'?'bill':'pay')+'">'+(tx.type==='bill'?'+':'-')+fmt(tx.amount)+editBtn+'</span></div>';
       }
       out+='</div>';
@@ -1213,7 +1248,7 @@ function renderLedgerVendorHistory(shopMatch,shopLabel,vMap){
       var tx=allTxns[j];
       if(tx.type==='bill')runBal+=tx.amount;else runBal-=tx.amount;
       var editData=JSON.stringify({recId:tx.recId,type:tx.type,giIdx:tx.giIdx,expIdx:tx.expIdx,source:tx.source||'',amount:tx.amount,vendor:tx.vendor,items:tx.items||'',billNo:tx.billNo||''}).replace(/'/g,'&#39;');
-      var editBtn=isO?'<button style="margin-left:6px;background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:10px;cursor:pointer;color:var(--text2)" data-edittxn=\''+editData+'\'>\u270E</button>':'';
+      var editBtn='<button style="margin-left:6px;background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:10px;cursor:pointer;color:var(--text2)" data-edittxn=\''+editData+'\'>\u270E</button>';
       out+='<div class="ven-txn"><span class="ven-txn-date">'+fmtD(tx.date)+'</span><span class="ven-txn-desc">'+(tx.type==='bill'?'\uD83D\uDCE6 ':'\uD83D\uDCB0 ')+tx.desc+' \u2022 '+SHOPS[tx.shop]+'</span><span class="ven-txn-amt '+(tx.type==='bill'?'bill':'pay')+'">'+(tx.type==='bill'?'+':'-')+fmt(tx.amount)+editBtn+'</span><span class="ldg-running-bal" style="color:'+(runBal>0?'var(--rose)':'var(--green)')+'">'+fmt(runBal)+'</span></div>';
     }
   }else{
@@ -2928,7 +2963,28 @@ function renderAnalytics(){
 }
 
 function renderSettings(){
-  return'<h2 style="font-size:18px;font-weight:700;margin-bottom:16px">Settings</h2><div class="card"><div class="ch"><div class="ci g">\uD83D\uDD10</div><div><div class="ct">Change Owner Password</div></div></div><div class="fg"><div class="fl">Current Password</div><input class="fi" type="password" maxlength="20" id="curPin" placeholder="Current password"></div><div style="height:8px"></div><div class="fg"><div class="fl">New Password</div><input class="fi" type="password" maxlength="20" id="newPin" placeholder="Min 8 characters"></div><div style="height:8px"></div><div class="fg"><div class="fl">Confirm</div><input class="fi" type="password" maxlength="20" id="confPin" placeholder="Confirm new password"></div><div id="pinMsg" style="font-size:12px;margin-top:8px"></div><button class="save-btn" id="changePin" style="margin-top:10px">Update Owner Password</button></div><div class="card"><div class="ch"><div class="ci a">\uD83C\uDFEA</div><div><div class="ct">Change Staff Passwords</div></div></div><div class="fg"><div class="fl">Role</div><select class="fi" id="staffPinRole"><option value="highway">Highway Branch</option><option value="mainroad">Mainroad Branch</option><option value="production">Production Staff</option><option value="ordering">Ordering Staff</option></select></div><div style="height:8px"></div><div class="fg"><div class="fl">Owner Password (verify)</div><input class="fi" type="password" maxlength="20" id="staffCurPin" placeholder="Owner password"></div><div style="height:8px"></div><div class="fg"><div class="fl">New Staff Password</div><input class="fi" type="password" maxlength="20" id="staffNewPin" placeholder="Min 8 characters"></div><div id="staffPinMsg" style="font-size:12px;margin-top:8px"></div><button class="save-btn" id="changeStaffPin" style="margin-top:10px">Update Staff Password</button></div><div class="card"><div class="ch"><div class="ci b">\uD83D\uDCF1</div><div><div class="ct">Install as App</div></div></div><div style="font-size:12px;color:var(--text2);line-height:1.8"><strong>iPhone:</strong> Safari \u2192 Share \u2192 Add to Home Screen<br><strong>Android:</strong> Chrome \u2192 \u22EE \u2192 Add to Home Screen</div></div><div class="card"><div class="ch"><div class="ci p">\uD83C\uDF19</div><div><div class="ct">Dark Mode</div><div class="cs">Easier on eyes at night</div></div></div><div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px"><span style="font-size:13px;color:var(--text2)">'+(S.darkMode?'Dark mode is ON':'Dark mode is OFF')+'</span><button class="ab '+(S.darkMode?'g':'a')+'" id="toggleDark" style="min-width:60px">'+(S.darkMode?'ON':'OFF')+'</button></div></div><div class="card"><div class="ch"><div class="ci b">\uD83D\uDCE5</div><div><div class="ct">Export Data</div><div class="cs">Download all entries as CSV</div></div></div><button class="save-btn" id="exportCSV" style="margin-top:8px">\uD83D\uDCC4 Download CSV</button></div><div class="card"><div class="ch"><div class="ci g">\uD83D\uDCCA</div><div><div class="ct">Data Stats</div></div></div><div style="font-size:13px;color:var(--text2);line-height:1.8">Total: <strong>'+S.records.length+'</strong> entries \u2022 <strong>'+(S.staffLogs||[]).length+'</strong> staff logs \u2022 <strong>'+S.advOrders.length+'</strong> customer orders<br>Shops: Highway, Mainroad'+(_offlineQueue.length?'<br><span style="color:var(--amber)">\u26A0\uFE0F '+_offlineQueue.length+' entries in offline queue</span>':'')+'</div></div>'
+  return'<h2 style="font-size:18px;font-weight:700;margin-bottom:16px">Settings</h2><div class="card"><div class="ch"><div class="ci g">\uD83D\uDD10</div><div><div class="ct">Change Owner Password</div></div></div><div class="fg"><div class="fl">Current Password</div><input class="fi" type="password" maxlength="20" id="curPin" placeholder="Current password"></div><div style="height:8px"></div><div class="fg"><div class="fl">New Password</div><input class="fi" type="password" maxlength="20" id="newPin" placeholder="Min 8 characters"></div><div style="height:8px"></div><div class="fg"><div class="fl">Confirm</div><input class="fi" type="password" maxlength="20" id="confPin" placeholder="Confirm new password"></div><div id="pinMsg" style="font-size:12px;margin-top:8px"></div><button class="save-btn" id="changePin" style="margin-top:10px">Update Owner Password</button></div><div class="card"><div class="ch"><div class="ci a">\uD83C\uDFEA</div><div><div class="ct">Change Staff Passwords</div></div></div><div class="fg"><div class="fl">Role</div><select class="fi" id="staffPinRole"><option value="highway">Highway Branch</option><option value="mainroad">Mainroad Branch</option><option value="production">Production Staff</option><option value="ordering">Ordering Staff</option></select></div><div style="height:8px"></div><div class="fg"><div class="fl">Owner Password (verify)</div><input class="fi" type="password" maxlength="20" id="staffCurPin" placeholder="Owner password"></div><div style="height:8px"></div><div class="fg"><div class="fl">New Staff Password</div><input class="fi" type="password" maxlength="20" id="staffNewPin" placeholder="Min 8 characters"></div><div id="staffPinMsg" style="font-size:12px;margin-top:8px"></div><button class="save-btn" id="changeStaffPin" style="margin-top:10px">Update Staff Password</button></div><div class="card"><div class="ch"><div class="ci b">\uD83D\uDCF1</div><div><div class="ct">Install as App</div></div></div><div style="font-size:12px;color:var(--text2);line-height:1.8"><strong>iPhone:</strong> Safari \u2192 Share \u2192 Add to Home Screen<br><strong>Android:</strong> Chrome \u2192 \u22EE \u2192 Add to Home Screen</div></div><div class="card"><div class="ch"><div class="ci p">\uD83C\uDF19</div><div><div class="ct">Dark Mode</div><div class="cs">Easier on eyes at night</div></div></div><div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px"><span style="font-size:13px;color:var(--text2)">'+(S.darkMode?'Dark mode is ON':'Dark mode is OFF')+'</span><button class="ab '+(S.darkMode?'g':'a')+'" id="toggleDark" style="min-width:60px">'+(S.darkMode?'ON':'OFF')+'</button></div></div><div class="card"><div class="ch"><div class="ci b">\uD83D\uDCE5</div><div><div class="ct">Export Data</div><div class="cs">Download all entries as CSV</div></div></div><button class="save-btn" id="exportCSV" style="margin-top:8px">\uD83D\uDCC4 Download CSV</button></div><div class="card"><div class="ch"><div class="ci g">\uD83D\uDCCA</div><div><div class="ct">Data Stats</div></div></div><div style="font-size:13px;color:var(--text2);line-height:1.8">Total: <strong>'+S.records.length+'</strong> entries \u2022 <strong>'+(S.staffLogs||[]).length+'</strong> staff logs \u2022 <strong>'+S.advOrders.length+'</strong> customer orders<br>Shops: Highway, Mainroad'+(_offlineQueue.length?'<br><span style="color:var(--amber)">\u26A0\uFE0F '+_offlineQueue.length+' entries in offline queue</span>':'')+'</div></div>'+renderActivityLog()
+}
+function renderActivityLog(){
+  var isO=S.role==='owner';
+  var logs=(S.activityLogs||[]).slice();
+  if(!logs.length)return'';
+  logs.sort(function(a,b){return(b.savedAt||'')>(a.savedAt||'')?1:(b.savedAt||'')<(a.savedAt||'')?-1:0});
+  var max=isO?50:20;
+  var shown=logs.slice(0,max);
+  var out='<div class="card"><div class="ch"><div class="ci a">\uD83D\uDCDD</div><div><div class="ct">Activity Log</div><div class="cs">'+logs.length+' action'+(logs.length>1?'s':'')+' recorded</div></div></div><div class="il">';
+  for(var i=0;i<shown.length;i++){
+    var lg=shown[i];
+    var ts=lg.savedAt?new Date(lg.savedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:true}):'';
+    var actionLabel=lg.action||'unknown';
+    actionLabel=actionLabel.replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase()});
+    var badge=lg.savedBy||'unknown';
+    var badgeColor=badge==='owner'?'var(--green)':badge==='staff'?'var(--blue)':badge==='ordering'?'var(--purple)':'var(--amber)';
+    out+='<div class="ir"><div style="flex:1"><div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:'+badgeColor+';color:#fff">'+esc(badge)+'</span><span style="font-size:10px;color:var(--text3)">'+ts+'</span></div><div class="in" style="font-size:12px">'+esc(actionLabel)+'</div>'+(lg.details?'<div class="ic">'+esc(lg.details)+'</div>':'')+'</div></div>';
+  }
+  if(logs.length>max)out+='<div style="text-align:center;font-size:11px;color:var(--text3);padding:8px">Showing '+max+' of '+logs.length+' actions</div>';
+  out+='</div></div>';
+  return out;
 }
 
 function bindEvents(){
@@ -2941,7 +2997,7 @@ function bindEvents(){
   var pk=document.getElementById('pinOk');if(pk)pk.onclick=function(){callApi('verifyPin',{pin:S.pinVal,role:S.pinRole}).then(function(r){if(r.valid){S.pinShow=false;if(S.pinRole==='owner'){S.role='owner';S.staffShop=-1;S.shop=0}else if(S.pinRole==='highway'){S.role='staff';S.staffShop=0;S.shop=0}else if(S.pinRole==='mainroad'){S.role='staff';S.staffShop=1;S.shop=1}else if(S.pinRole==='production'){S.role='production';S.staffShop=-1;S.shop=0}else if(S.pinRole==='ordering'){S.role='ordering';S.staffShop=-1;S.shop=0}S.screen='app';S.tab=0;doFetch()}else{S.pinErr='Wrong password';render()}}).catch(function(e){S.pinErr=e.message;render()})};
   document.querySelectorAll('[data-tab]').forEach(function(b){b.onclick=function(){S.tab=parseInt(b.dataset.tab);if(S.tab===0)loadForm();render()}});
   var sy=document.getElementById('btnSync');if(sy)sy.onclick=function(){doFetch()};
-  var lo=document.getElementById('btnLogout');if(lo)lo.onclick=function(){S.screen='login';S.role=null;S.staffShop=-1;S.tab=0;S.shop=0;S.date=today();S.records=[];S.staffLogs=[];S.recipes=[];S.rawMatRecords=[];S.grnRecords=[];S.advOrders=[];S.prodOrderRecords=[];S.oc=[0,0,0,0,0,0,0];S.cc=[0,0,0,0,0,0,0];S.upi=0;S.billed=0;S.walk=0;S.exps=[];S.goodsIn=[];S.prodOrders=[];S.rawMats=[];S.notes='';S.cashRetained=0;S.ordItems=[];S.grnItems=[];S.advItems=[];render()};
+  var lo=document.getElementById('btnLogout');if(lo)lo.onclick=function(){S.screen='login';S.role=null;S.staffShop=-1;S.tab=0;S.shop=0;S.date=today();S.records=[];S.staffLogs=[];S.activityLogs=[];S.recipes=[];S.rawMatRecords=[];S.grnRecords=[];S.advOrders=[];S.prodOrderRecords=[];S.oc=[0,0,0,0,0,0,0];S.cc=[0,0,0,0,0,0,0];S.upi=0;S.billed=0;S.walk=0;S.exps=[];S.goodsIn=[];S.prodOrders=[];S.rawMats=[];S.notes='';S.cashRetained=0;S.ordItems=[];S.grnItems=[];S.advItems=[];render()};
   var di=document.getElementById('dateInp');if(di)di.onchange=function(e){S.date=e.target.value;loadForm();render()};
   var si2=document.getElementById('shopInp');if(si2)si2.onchange=function(e){S.shop=parseInt(e.target.value);loadForm();render()};
   var ui=document.getElementById('upiInp');if(ui)ui.oninput=function(e){S.upi=parseInt(e.target.value)||0};
@@ -3063,7 +3119,18 @@ function bindEvents(){
   var pvh=document.getElementById('btnPrintVendorHistory');if(pvh)pvh.onclick=generateVendorHistoryReport;
   // Vendor transaction toggle
   document.querySelectorAll('[data-venshow]').forEach(function(b){b.onclick=function(){var idx=b.dataset.venshow;var el=document.getElementById('venTxn'+idx);if(el){if(el.style.display==='none'){el.style.display='block';b.innerHTML='\u25B2 Hide transactions'}else{el.style.display='none';b.innerHTML='\u25BC View transactions'}}}});
-  // Edit ledger transaction (owner only)
+  // Delete goods inward from ledger daily view
+  document.querySelectorAll('[data-delsavedgi]').forEach(function(b){b.onclick=function(){
+    if(!confirm('Delete this goods inward entry?'))return;
+    var info=JSON.parse(b.dataset.delsavedgi);
+    var src=info.source==='grn'?S.grnRecords:S.records;
+    var rec=null;for(var i=0;i<src.length;i++){if(src[i].id===info.recId){rec=src[i];break}}
+    if(!rec){toast('\u274C Record not found');return}
+    var gi=rec.goodsInward||[];var deleted=null;if(info.giIdx>=0&&info.giIdx<gi.length){deleted=gi[info.giIdx];gi.splice(info.giIdx,1);rec.goodsInward=gi;var gt=0;for(var i=0;i<gi.length;i++)gt+=gi[i].amount;rec.totalGoodsInward=gt}
+    logActivity('delete_goods_inward',deleted?('Deleted GI: '+deleted.vendor+' \u20B9'+(deleted.amount||0)+(deleted.items?' - '+deleted.items:'')):'Deleted GI item');
+    callApi('save',{},rec).then(function(){toast('\u2705 Deleted');return doFetch()}).catch(function(e){toast('\u274C '+e.message)});
+  }});
+  // Edit ledger transaction
   document.querySelectorAll('[data-edittxn]').forEach(function(b){b.onclick=function(){
     var info=JSON.parse(b.dataset.edittxn);
     var oldOv=document.querySelector('.overlay.txn-edit-ov');if(oldOv)oldOv.remove();
@@ -3085,6 +3152,7 @@ function bindEvents(){
       if(!rec){toast('\u274C Record not found');ov.remove();return}
       if(isBill){var gi=rec.goodsInward||[];if(info.giIdx>=0&&info.giIdx<gi.length){gi.splice(info.giIdx,1);rec.goodsInward=gi;var gt=0;for(var i=0;i<gi.length;i++)gt+=gi[i].amount;rec.totalGoodsInward=gt}}
       else{var exps=rec.expenses||[];if(info.expIdx>=0&&info.expIdx<exps.length){var rm=exps[info.expIdx];exps.splice(info.expIdx,1);rec.expenses=exps;rec.totalExpenses=(rec.totalExpenses||0)-rm.amount;if(rm.category==='Vendor Payment')rec.totalVendorPayments=(rec.totalVendorPayments||0)-rm.amount}}
+      logActivity('delete_'+(isBill?'goods_inward':'payment'),'Deleted '+(isBill?'GI':'payment')+': '+info.vendor+' \u20B9'+info.amount);
       ov.remove();callApi('save',{},rec).then(function(){toast('\u2705 Deleted');return doFetch()}).catch(function(e){toast('\u274C '+e.message)});
     };
     document.getElementById('txnEditSave').onclick=function(){
@@ -3099,6 +3167,7 @@ function bindEvents(){
       }else{
         var exps=rec.expenses||[];if(info.expIdx>=0&&info.expIdx<exps.length){var oldAmt2=exps[info.expIdx].amount;exps[info.expIdx].description=newVendor;exps[info.expIdx].amount=newAmt;rec.expenses=exps;rec.totalExpenses=(rec.totalExpenses||0)-oldAmt2+newAmt;if(exps[info.expIdx].category==='Vendor Payment')rec.totalVendorPayments=(rec.totalVendorPayments||0)-oldAmt2+newAmt}
       }
+      logActivity('edit_'+(isBill?'goods_inward':'payment'),'Edited '+(isBill?'GI':'payment')+': '+info.vendor+' \u20B9'+info.amount+' \u2192 '+newVendor+' \u20B9'+newAmt);
       ov.remove();callApi('save',{},rec).then(function(){toast('\u2705 Updated');return doFetch()}).catch(function(e){toast('\u274C '+e.message)});
     };
   }});
