@@ -395,6 +395,25 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
 .ac-opt{padding:10px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border)}
 .ac-opt:last-child{border-bottom:none}
 .ac-opt:active,.ac-opt:hover{background:var(--gl);color:var(--green)}
+/* Dark mode */
+.dark{--bg:#1a1a1a;--card:#242424;--border:#3a3a3a;--text:#e8e4de;--text2:#a09888;--text3:#706858;--gl:#0d2e1e;--gd:#4ade80;--al:#3a2800;--rl:#3a1515;--bl:#152040;--pl:#2a1548;--tl:#0a3028}
+.dark .login-screen{background:linear-gradient(165deg,#0a2018,#0d3a28,#1a5040)}
+.dark .fi{background:var(--card);color:var(--text)}
+.dark .save-btn{background:linear-gradient(135deg,#1a5040,#2d8a63)}
+.dark .order-summary{background:linear-gradient(135deg,#0a2018,#1a5040)}
+.dark .ven-totals,.dark .rpt-combined{background:linear-gradient(135deg,#0a2018,#1a5040)}
+.dark .app-header{background:linear-gradient(135deg,#0a2018,#1a5040)}
+.dark .tab-btn.on{background:var(--card);color:var(--gd)}
+.dark .modal{background:var(--card)}
+.dark .pin-input{background:var(--bg);color:var(--text);border-color:var(--border)}
+/* Pull to refresh */
+.ptr-indicator{text-align:center;padding:0;height:0;overflow:hidden;transition:height .2s,padding .2s;font-size:12px;color:var(--text3);font-weight:600}
+.ptr-indicator.active{height:40px;padding:10px}
+/* Search bar */
+.search-bar{display:flex;gap:8px;margin-bottom:12px}
+.search-bar input{flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rs);font-size:13px;background:var(--card);color:var(--text);outline:none}
+.search-bar input:focus{border-color:var(--green)}
+.search-bar input::placeholder{color:var(--text3)}
 </style>
 </head>
 <body>
@@ -408,6 +427,41 @@ function toISO(d){var x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth
 function today(){return toISO(new Date())}
 function gid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function dTotal(a){var s=0;for(var i=0;i<a.length;i++)s+=a[i]*DV[i];return s}
+// XSS sanitization
+function esc(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+// Offline save queue
+var _offlineQueue=JSON.parse(localStorage.getItem('_offQ')||'[]');
+function flushOfflineQueue(){
+  if(!navigator.onLine||!_offlineQueue.length)return;
+  var item=_offlineQueue.shift();
+  callApi('save',{},item).then(function(){localStorage.setItem('_offQ',JSON.stringify(_offlineQueue));if(_offlineQueue.length)flushOfflineQueue();else{toast('\u2705 Offline queue synced');doFetch()}}).catch(function(){_offlineQueue.unshift(item);localStorage.setItem('_offQ',JSON.stringify(_offlineQueue))})
+}
+window.addEventListener('online',function(){toast('\u2705 Back online');flushOfflineQueue()});
+window.addEventListener('offline',function(){toast('\u26A0\uFE0F Offline \u2014 saves will queue')});
+// Session timeout (30 min inactivity)
+var _sessionTimer=null;
+function resetSessionTimer(){
+  if(_sessionTimer)clearTimeout(_sessionTimer);
+  if(S.screen==='app')_sessionTimer=setTimeout(function(){S.screen='login';S.role=null;S.staffShop=-1;S.tab=0;S.shop=0;S.records=[];toast('\u23F0 Session expired \u2014 please login again');render()},30*60*1000)
+}
+['click','touchstart','keydown'].forEach(function(ev){document.addEventListener(ev,resetSessionTimer,{passive:true})});
+// CSV export
+function exportCSV(){
+  var rows=[['Date','Shop','Opening','Closing','UPI','Billed','Walk-ins','Expenses','Vendors','Goods Inward','Cash Retained','Notes','Saved By']];
+  S.records.forEach(function(r){rows.push([r.date,SHOPS[r.shop]||r.shop,r.openingTotal||0,r.closingTotal||0,r.upiReceived||0,r.totalBilled||0,r.walkIns||0,r.totalExpenses||0,r.totalVendorPayments||0,r.totalGoodsInward||0,r.cashRetained||0,(r.notes||'').replace(/,/g,';'),r.savedBy||''])});
+  var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"'}).join(',')}).join('\n');
+  var blob=new Blob([csv],{type:'text/csv'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='akshay-bakery-data-'+today()+'.csv';a.click()
+}
+// Undo delete
+var _undoEntry=null,_undoTimer=null;
+function undoDelete(){if(!_undoEntry)return;callApi('save',{},_undoEntry).then(function(){toast('\u2705 Restored');_undoEntry=null;doFetch()}).catch(function(e){toast('\u274C '+e.message)})}
+function showUndoToast(entry){
+  _undoEntry=entry;if(_undoTimer)clearTimeout(_undoTimer);
+  var old=document.querySelector('.undo-toast');if(old)old.remove();
+  var t=document.createElement('div');t.className='undo-toast';t.innerHTML='Deleted <button onclick="undoDelete()">UNDO</button>';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:12px 20px;border-radius:30px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 8px 30px rgba(0,0,0,.3);display:flex;align-items:center;gap:12px';
+  t.querySelector('button').style.cssText='background:#4ade80;color:#000;border:none;padding:4px 12px;border-radius:20px;font-weight:700;font-size:12px;cursor:pointer';
+  document.body.appendChild(t);_undoTimer=setTimeout(function(){if(t.parentNode)t.remove();_undoEntry=null},5000)
+}
 function acInput(id,opts,el){
   var inp=el||document.getElementById(id);if(!inp)return;
   var wrap=inp.parentElement;if(!wrap.classList.contains('ac-wrap')){var w=document.createElement('div');w.className='ac-wrap';inp.parentNode.insertBefore(w,inp);w.appendChild(inp);wrap=w}
@@ -441,7 +495,7 @@ else if(/Mac/.test(ua))msg='<b>Mac:</b><br>1. Open in <b>Chrome</b><br>2. Click 
 else msg='Open this page in <b>Chrome</b> or <b>Edge</b> and look for the <b>install icon</b> in the address bar.';
 S.installMsg=msg;render()
 }
-var S={screen:'login',role:null,staffShop:-1,tab:0,shop:0,date:today(),records:[],recipes:[],rawMatRecords:[],grnRecords:[],loading:false,saving:false,oc:[0,0,0,0,0,0,0],cc:[0,0,0,0,0,0,0],upi:0,billed:0,walk:0,exps:[],goodsIn:[],prodOrders:[],rawMats:[],notes:'',pinShow:false,pinVal:'',pinErr:'',pinRole:'',connected:false,reportDate:today(),aShop:'all',rcpForm:{name:'',cat:'Baking',yield:'',yieldUnit:'pcs',prep:'',bake:'',temp:'',ings:[],steps:[''],notes:'',shelf:'',storage:''},rcpAdding:false,rcpView:-1,orderDate:today(),pShop:'all',pRange:'30',giType:'bill',cashRetained:0,ordShop:0,ordItems:[],grnShop:0,grnType:'bill',grnItems:[],advOrders:[],advDate:today(),advCust:'',advProd:'',advQty:'',advUnit:'pcs',advCat:'Baking',advNotes:'',advItems:[],advShop:0,installMsg:null,execRptPeriod:'thisMonth',execRptFrom:'',execRptTo:'',ledgerShop:'all',ledgerDate:today(),ledgerView:'daily',ledgerPeriod:'thisMonth',ledgerFrom:'',ledgerTo:'',ledgerVendor:''};
+var S={screen:'login',role:null,staffShop:-1,tab:0,shop:0,date:today(),records:[],recipes:[],rawMatRecords:[],grnRecords:[],loading:false,saving:false,oc:[0,0,0,0,0,0,0],cc:[0,0,0,0,0,0,0],upi:0,billed:0,walk:0,exps:[],goodsIn:[],prodOrders:[],rawMats:[],notes:'',pinShow:false,pinVal:'',pinErr:'',pinRole:'',connected:false,reportDate:today(),aShop:'all',rcpForm:{name:'',cat:'Baking',yield:'',yieldUnit:'pcs',prep:'',bake:'',temp:'',ings:[],steps:[''],notes:'',shelf:'',storage:''},rcpAdding:false,rcpView:-1,orderDate:today(),pShop:'all',pRange:'30',giType:'bill',cashRetained:0,ordShop:0,ordItems:[],grnShop:0,grnType:'bill',grnItems:[],advOrders:[],advDate:today(),advCust:'',advProd:'',advQty:'',advUnit:'pcs',advCat:'Baking',advNotes:'',advItems:[],advShop:0,installMsg:null,execRptPeriod:'thisMonth',execRptFrom:'',execRptTo:'',ledgerShop:'all',ledgerDate:today(),ledgerView:'daily',ledgerPeriod:'thisMonth',ledgerFrom:'',ledgerTo:'',ledgerVendor:'',darkMode:localStorage.getItem('darkMode')==='1',histSearch:'',histFrom:'',histTo:'',histPage:0,ledgerSearch:''};
 
 function h(tag,cls,html){var e=document.createElement(tag);if(cls)e.className=cls;if(html!==undefined)e.innerHTML=html;return e}
 
@@ -485,7 +539,8 @@ function loadForm(){
 }
 function doFetch(){
   S.loading=true;render();
-  callApi('getAll').then(function(res){var d=res.data||[];S.records=[];S.staffLogs=[];S.recipes=[];S.rawMatRecords=[];S.grnRecords=[];S.advOrders=[];S.prodOrderRecords=[];for(var i=0;i<d.length;i++){parseRecord(d[i]);if(d[i].type==='recipe')S.recipes.push(d[i]);else if(d[i].type==='rawMaterial')S.rawMatRecords.push(d[i]);else if(d[i].type==='goodsInward')S.grnRecords.push(d[i]);else if(d[i].type==='advanceOrder')S.advOrders.push(d[i]);else if(d[i].type==='staffLog')S.staffLogs.push(d[i]);else if(d[i].type==='productOrder')S.prodOrderRecords.push(d[i]);else S.records.push(d[i])}S.connected=true;syncKnownNames();syncProductNames()}).catch(function(e){toast('\u274C '+e.message);S.connected=false}).then(function(){S.loading=false;loadForm();render()})
+  var params={};if(S.role==='staff')params.role='staff';
+  callApi('getAll',params).then(function(res){var d=res.data||[];S.records=[];S.staffLogs=[];S.recipes=[];S.rawMatRecords=[];S.grnRecords=[];S.advOrders=[];S.prodOrderRecords=[];for(var i=0;i<d.length;i++){parseRecord(d[i]);if(d[i].type==='recipe')S.recipes.push(d[i]);else if(d[i].type==='rawMaterial')S.rawMatRecords.push(d[i]);else if(d[i].type==='goodsInward')S.grnRecords.push(d[i]);else if(d[i].type==='advanceOrder')S.advOrders.push(d[i]);else if(d[i].type==='staffLog')S.staffLogs.push(d[i]);else if(d[i].type==='productOrder')S.prodOrderRecords.push(d[i]);else S.records.push(d[i])}S.connected=true;syncKnownNames();syncProductNames();flushOfflineQueue()}).catch(function(e){toast('\u274C '+e.message);S.connected=false}).then(function(){S.loading=false;loadForm();render();resetSessionTimer()})
 }
 function toast(msg){var old=document.querySelector('.toast');if(old)old.remove();var t=h('div','toast',msg);document.body.appendChild(t);setTimeout(function(){if(t.parentNode)t.remove()},2500)}
 
@@ -496,6 +551,7 @@ function recsInRange(from,to){var a=[];for(var i=0;i<S.records.length;i++){if(S.
 function dateOffset(d,off){var x=new Date(d+'T00:00:00');x.setDate(x.getDate()+off);return toISO(x)}
 
 function render(){
+  document.body.classList.toggle('dark',S.darkMode);
   var app=document.getElementById('app');app.innerHTML='';
   if(S.loading){app.appendChild(h('div','loading-bar'))}
   if(S.screen==='login'){app.innerHTML=renderLogin()}
@@ -522,7 +578,7 @@ function renderApp(){
   else tabs=['\uD83D\uDCDD Entry','\uD83D\uDCCB History','\uD83D\uDCE6 Orders'];
   var tabH='';for(var i=0;i<tabs.length;i++)tabH+='<button class="tab-btn'+(S.tab===i?' on':'')+'" data-tab="'+i+'">'+tabs[i]+'</button>';
   var hdr='<div class="app-header"><div class="header-row"><div class="header-left"><div class="header-icon"><img src="data:image/png;base64,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" style="width:auto;height:28px" alt="AB"></div><div><div class="header-title">Akshay Bakery</div><div class="header-role"><span class="sync-dot '+(S.connected?'on':'off')+'"></span>'+roleLabel+' \u2022 Cloud</div></div></div><div style="display:flex;gap:6px"><button class="logout-btn" id="btnSync">\u21BB</button><button class="logout-btn" id="btnLogout">Logout</button></div></div><div class="tab-bar">'+tabH+'</div></div>';
-  var body='<div class="app-body">';
+  var body='<div class="app-body"><div class="ptr-indicator">\u21BB Pull to refresh</div>';
   if(isO){
     if(S.tab===0)body+=renderEntry();
     else if(S.tab===1)body+=renderHistory();
@@ -603,12 +659,12 @@ function renderEntry(){
   // === STEP 3: Expenses ===
   var expList='';var expTot=0;
   var isO=S.role==='owner';
-  for(var i=0;i<S.exps.length;i++){var x=S.exps[i];expTot+=x.amount;expList+='<div class="ir"><div><div class="in">'+(x.description||'\u2014')+'</div><div class="ic">'+x.category+'</div></div><div style="display:flex;align-items:center;gap:8px"><span class="ia e">'+fmt(x.amount)+'</span>'+(isO?'<button style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:10px;cursor:pointer;color:var(--text2)" data-editexp="'+i+'">\u270E</button>':'')+'<button class="ix" data-delex="'+i+'">\u00D7</button></div></div>'}
+  for(var i=0;i<S.exps.length;i++){var x=S.exps[i];expTot+=x.amount;expList+='<div class="ir"><div><div class="in">'+esc(x.description||'\u2014')+'</div><div class="ic">'+esc(x.category)+'</div></div><div style="display:flex;align-items:center;gap:8px"><span class="ia e">'+fmt(x.amount)+'</span>'+(isO?'<button style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:10px;cursor:pointer;color:var(--text2)" data-editexp="'+i+'">\u270E</button>':'')+'<button class="ix" data-delex="'+i+'">\u00D7</button></div></div>'}
   if(S.exps.length)expList+='<div class="it"><span class="itl">Total</span><span class="ia e">'+fmt(expTot)+'</span></div>';
   out+='<div class="card"><div class="ch"><div class="ci r">\uD83D\uDCE4</div><div><div class="ct">Daily Expenses</div><div class="cs">Running costs</div></div></div>'+(S.exps.length?'<div class="il">'+expList+'</div>':'')+'<div class="fr c2"><div class="fg"><div class="fl">Description</div><input class="fi" type="text" id="expDesc" placeholder="e.g. Staff food" list="dlExpNames" autocomplete="off"></div><div class="fg"><div class="fl">Amount</div><div class="iw"><span class="ip">\u20B9</span><input class="fi wp" type="number" inputmode="numeric" id="expAmt" placeholder="0"></div></div></div><div class="ar" style="margin-top:8px"><div style="flex:1"><div class="fg"><div class="fl">Category</div><select class="fi" id="expCat">'+ECATS.map(function(c){return'<option>'+c+'</option>'}).join('')+'</select></div></div><button class="ab g" id="addExp">+ Add</button></div></div>';
   // Goods Inward section
   var giList='';var giTot=0;
-  for(var i=0;i<S.goodsIn.length;i++){var g=S.goodsIn[i];giTot+=(g.amount||0);var giDetail,giVal;if(g.entryType==='qty'){giDetail=g.qty+' '+(g.qtyUnit||'kg')+(g.rate?' @ '+fmt(g.rate)+'/'+g.qtyUnit:'')+(g.items?' \u2022 '+g.items:'');giVal=g.rate?'<span class="ia v">'+fmt(g.amount)+'</span>':'<div style="display:flex;align-items:center;gap:4px"><span style="font-size:10px;color:var(--text3)">\u20B9</span><input class="fi" type="number" inputmode="numeric" data-girate="'+i+'" value="'+(g.rate||'')+'" placeholder="Rate" style="width:60px;padding:4px 6px;font-size:12px"></div>'}else{giDetail=(g.items||'\u2014')+(g.billNo?' \u2022 Inv #'+g.billNo:'');giVal='<span class="ia v">'+fmt(g.amount)+'</span>'}giList+='<div class="ir"><div><div class="in">'+g.vendor+'</div><div class="ic">'+giDetail+'</div></div><div style="display:flex;align-items:center;gap:8px">'+giVal+(isO?'<button style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:10px;cursor:pointer;color:var(--text2)" data-editgi="'+i+'">\u270E</button>':'')+'<button class="ix" data-delgi="'+i+'">\u00D7</button></div></div>'}
+  for(var i=0;i<S.goodsIn.length;i++){var g=S.goodsIn[i];giTot+=(g.amount||0);var giDetail,giVal;if(g.entryType==='qty'){giDetail=g.qty+' '+(g.qtyUnit||'kg')+(g.rate?' @ '+fmt(g.rate)+'/'+g.qtyUnit:'')+(g.items?' \u2022 '+g.items:'');giVal=g.rate?'<span class="ia v">'+fmt(g.amount)+'</span>':'<div style="display:flex;align-items:center;gap:4px"><span style="font-size:10px;color:var(--text3)">\u20B9</span><input class="fi" type="number" inputmode="numeric" data-girate="'+i+'" value="'+(g.rate||'')+'" placeholder="Rate" style="width:60px;padding:4px 6px;font-size:12px"></div>'}else{giDetail=(g.items||'\u2014')+(g.billNo?' \u2022 Inv #'+g.billNo:'');giVal='<span class="ia v">'+fmt(g.amount)+'</span>'}giList+='<div class="ir"><div><div class="in">'+esc(g.vendor)+'</div><div class="ic">'+esc(giDetail)+'</div></div><div style="display:flex;align-items:center;gap:8px">'+giVal+(isO?'<button style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:10px;cursor:pointer;color:var(--text2)" data-editgi="'+i+'">\u270E</button>':'')+'<button class="ix" data-delgi="'+i+'">\u00D7</button></div></div>'}
   if(S.goodsIn.length)giList+='<div class="it"><span class="itl">Total Bills</span><span class="ia v">'+fmt(giTot)+'</span></div>';
   var giBill=S.giType==='bill',giQty=S.giType==='qty';
   out+='<div class="card"><div class="ch"><div class="ci t">\uD83D\uDCE6</div><div><div class="ct">Goods Inward</div><div class="cs">Stock arriving today</div></div></div>'+(S.goodsIn.length?'<div class="il">'+giList+'</div>':'');
@@ -853,10 +909,21 @@ function compareRow(label,oldVal,newVal,inverse){
 }
 
 function renderHistory(){
-  var isO=S.role==='owner';var vis=isO?S.records:(S.staffLogs||[]);
-  var out='<div class="hh"><h2>'+(isO?'All History ('+vis.length+')':'Entry Log ('+vis.length+')')+'</h2>'+(isO&&vis.length?'<button class="cb" id="clearAll">Clear All</button>':'')+'</div>';
-  if(!vis.length&&!(isO&&(S.staffLogs||[]).length))return out+'<div class="es"><div class="esi">\uD83D\uDCCB</div><div class="est">No entries yet</div></div>';
-  var logRow=function(label,val){return '<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid var(--border)"><span style="color:var(--text2)">'+label+'</span><span style="font-weight:600">'+val+'</span></div>'};
+  var isO=S.role==='owner';var allVis=isO?S.records:(S.staffLogs||[]);
+  // Filter by date range
+  var vis=allVis;
+  if(S.histFrom||S.histTo){vis=vis.filter(function(r){if(S.histFrom&&r.date<S.histFrom)return false;if(S.histTo&&r.date>S.histTo)return false;return true})}
+  // Filter by search
+  if(S.histSearch){var q=S.histSearch.toLowerCase();vis=vis.filter(function(r){var haystack=(r.date+' '+SHOPS[r.shop]+' '+(r.notes||'')+' '+(r.savedBy||'')).toLowerCase();if(haystack.indexOf(q)>=0)return true;var exps=r.expenses||[];for(var e=0;e<exps.length;e++){if((exps[e].description||'').toLowerCase().indexOf(q)>=0||(exps[e].category||'').toLowerCase().indexOf(q)>=0)return true}var gi=r.goodsInward||[];for(var g=0;g<gi.length;g++){if((gi[g].vendor||'').toLowerCase().indexOf(q)>=0||(gi[g].items||'').toLowerCase().indexOf(q)>=0)return true}return false})}
+  var PAGE_SIZE=20;var totalPages=Math.ceil(vis.length/PAGE_SIZE)||1;if(S.histPage>=totalPages)S.histPage=totalPages-1;if(S.histPage<0)S.histPage=0;
+  var pageVis=vis.slice(S.histPage*PAGE_SIZE,(S.histPage+1)*PAGE_SIZE);
+  var out='<div class="hh"><h2>'+(isO?'History ('+vis.length+')':'Entry Log ('+vis.length+')')+'</h2>'+(isO&&allVis.length?'<button class="cb" id="clearAll">Clear All</button>':'')+'</div>';
+  // Search bar
+  out+='<div class="search-bar"><input type="text" id="histSearchInp" placeholder="\uD83D\uDD0D Search entries..." value="'+esc(S.histSearch)+'"></div>';
+  // Date range filter
+  out+='<div style="display:flex;gap:8px;margin-bottom:12px"><div class="fg" style="flex:1"><div class="fl">From</div><input class="fi" type="date" id="histFromInp" value="'+S.histFrom+'"></div><div class="fg" style="flex:1"><div class="fl">To</div><input class="fi" type="date" id="histToInp" value="'+S.histTo+'"></div>'+(S.histFrom||S.histTo?'<button style="align-self:flex-end;padding:10px;border:1px solid var(--border);border-radius:var(--rs);background:var(--card);cursor:pointer;font-size:12px;color:var(--rose)" id="histClearDates">\u00D7</button>':'')+'</div>';
+  if(!vis.length&&!(isO&&(S.staffLogs||[]).length))return out+'<div class="es"><div class="esi">\uD83D\uDCCB</div><div class="est">No entries found</div></div>';
+  var logRow=function(label,val){return '<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid var(--border)"><span style="color:var(--text2)">'+esc(label)+'</span><span style="font-weight:600">'+val+'</span></div>'};
   function renderLogCard(r){
     var ts=r.savedAt?new Date(r.savedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:true}):'';
     var sl='<div class="card hc"><div class="ht"><div><div class="hd">'+fmtD(r.date)+'</div><div class="hb s'+r.shop+'">'+SHOPS[r.shop]+(ts?' \u2022 Saved '+ts:'')+(r.savedBy?' \u2022 by '+r.savedBy:'')+'</div></div></div>';
@@ -877,18 +944,22 @@ function renderHistory(){
     sl+='</div>';
     return sl;
   }
-  for(var i=0;i<vis.length;i++){var r=vis[i];var rVen=r.totalVendorPayments||0;var rNonVen=r.totalExpenses-rVen;var rGI=r.totalGoodsInward||0;var giCount=(r.goodsInward||[]).length;var ts=r.savedAt?new Date(r.savedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:true}):'';
+  for(var i=0;i<pageVis.length;i++){var r=pageVis[i];var rVen=r.totalVendorPayments||0;var rNonVen=r.totalExpenses-rVen;var rGI=r.totalGoodsInward||0;var giCount=(r.goodsInward||[]).length;var ts=r.savedAt?new Date(r.savedAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:true}):'';
   if(isO){
-    out+='<div class="card hc"><div class="ht"><div><div class="hd">'+fmtD(r.date)+'</div><div class="hb s'+r.shop+'">'+SHOPS[r.shop]+(ts?' \u2022 Saved '+ts:'')+'</div></div><div style="display:flex;gap:6px"><button style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;color:var(--gd);font-weight:600" data-editrec="'+r.date+'" data-editshop="'+r.shop+'">\u270E Edit</button><button class="hdel" data-delrec="'+r.id+'">Delete</button></div></div><div class="hm">'+mc('Billed',fmt(r.totalBilled))+mc('UPI',fmt(r.upiReceived),'blue')+mc('Walk-ins',r.walkIns,'green')+mc('Opening',fmt(r.openingTotal))+mc('Closing',fmt(r.closingTotal))+mc('Expenses',fmt(rNonVen),'rose')+(rGI?mc('Goods In',fmt(rGI),'teal'):'')+'</div>'+(rVen?'<div class="hv">Vendor Payments: '+fmt(rVen)+'</div>':'')+(giCount?'<div class="hv" style="color:var(--teal)">\uD83D\uDCE6 Goods Inward: '+giCount+' item'+(giCount>1?'s':'')+' \u2022 '+fmt(rGI)+'</div>':'')+(r.notes?'<div class="hn">"'+r.notes+'"</div>':'')+'</div>';
+    out+='<div class="card hc"><div class="ht"><div><div class="hd">'+fmtD(r.date)+'</div><div class="hb s'+r.shop+'">'+esc(SHOPS[r.shop])+(ts?' \u2022 Saved '+ts:'')+'</div></div><div style="display:flex;gap:6px"><button style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;color:var(--gd);font-weight:600" data-editrec="'+r.date+'" data-editshop="'+r.shop+'">\u270E Edit</button><button class="hdel" data-delrec="'+r.id+'">Delete</button></div></div><div class="hm">'+mc('Billed',fmt(r.totalBilled))+mc('UPI',fmt(r.upiReceived),'blue')+mc('Walk-ins',r.walkIns,'green')+mc('Opening',fmt(r.openingTotal))+mc('Closing',fmt(r.closingTotal))+mc('Expenses',fmt(rNonVen),'rose')+(rGI?mc('Goods In',fmt(rGI),'teal'):'')+'</div>'+(rVen?'<div class="hv">Vendor Payments: '+fmt(rVen)+'</div>':'')+(giCount?'<div class="hv" style="color:var(--teal)">\uD83D\uDCE6 Goods Inward: '+giCount+' item'+(giCount>1?'s':'')+' \u2022 '+fmt(rGI)+'</div>':'')+(r.notes?'<div class="hn">"'+esc(r.notes.replace(/\[\[CR:\d+\]\]/g,'').trim())+'"</div>':'')+'</div>';
   }else{
     out+=renderLogCard(r);
   }}
+  // Pagination controls
+  if(totalPages>1){out+='<div style="display:flex;align-items:center;justify-content:center;gap:12px;margin:16px 0"><button class="ldg-date-btn" data-histpage="'+(S.histPage-1)+'"'+(S.histPage<=0?' disabled style="opacity:.3"':'')+'>\u25C0</button><span style="font-size:12px;font-weight:600;color:var(--text2)">Page '+(S.histPage+1)+' of '+totalPages+'</span><button class="ldg-date-btn" data-histpage="'+(S.histPage+1)+'"'+(S.histPage>=totalPages-1?' disabled style="opacity:.3"':'')+'>\u25B6</button></div>'}
   // Owner: show staff activity logs section
   if(isO){
     var logs=S.staffLogs||[];
     if(logs.length){
       out+='<div class="hh" style="margin-top:24px"><h2>\uD83D\uDCDD Staff Activity Logs ('+logs.length+')</h2></div>';
-      for(var j=0;j<logs.length;j++){out+=renderLogCard(logs[j])}
+      var logPage=logs.slice(0,PAGE_SIZE);
+      for(var j=0;j<logPage.length;j++){out+=renderLogCard(logPage[j])}
+      if(logs.length>PAGE_SIZE)out+='<div style="text-align:center;font-size:11px;color:var(--text3);margin:8px 0">Showing '+PAGE_SIZE+' of '+logs.length+' logs</div>';
     }
   }
   return out;
@@ -2857,7 +2928,7 @@ function renderAnalytics(){
 }
 
 function renderSettings(){
-  return'<h2 style="font-size:18px;font-weight:700;margin-bottom:16px">Settings</h2><div class="card"><div class="ch"><div class="ci g">\uD83D\uDD10</div><div><div class="ct">Change Owner Password</div></div></div><div class="fg"><div class="fl">Current Password</div><input class="fi" type="password" maxlength="20" id="curPin" placeholder="Current password"></div><div style="height:8px"></div><div class="fg"><div class="fl">New Password</div><input class="fi" type="password" maxlength="20" id="newPin" placeholder="Min 8 characters"></div><div style="height:8px"></div><div class="fg"><div class="fl">Confirm</div><input class="fi" type="password" maxlength="20" id="confPin" placeholder="Confirm new password"></div><div id="pinMsg" style="font-size:12px;margin-top:8px"></div><button class="save-btn" id="changePin" style="margin-top:10px">Update Owner Password</button></div><div class="card"><div class="ch"><div class="ci a">\uD83C\uDFEA</div><div><div class="ct">Change Staff Passwords</div></div></div><div class="fg"><div class="fl">Role</div><select class="fi" id="staffPinRole"><option value="highway">Highway Branch</option><option value="mainroad">Mainroad Branch</option><option value="production">Production Staff</option><option value="ordering">Ordering Staff</option></select></div><div style="height:8px"></div><div class="fg"><div class="fl">Owner Password (verify)</div><input class="fi" type="password" maxlength="20" id="staffCurPin" placeholder="Owner password"></div><div style="height:8px"></div><div class="fg"><div class="fl">New Staff Password</div><input class="fi" type="password" maxlength="20" id="staffNewPin" placeholder="Min 8 characters"></div><div id="staffPinMsg" style="font-size:12px;margin-top:8px"></div><button class="save-btn" id="changeStaffPin" style="margin-top:10px">Update Staff Password</button></div><div class="card"><div class="ch"><div class="ci b">\uD83D\uDCF1</div><div><div class="ct">Install as App</div></div></div><div style="font-size:12px;color:var(--text2);line-height:1.8"><strong>iPhone:</strong> Safari \u2192 Share \u2192 Add to Home Screen<br><strong>Android:</strong> Chrome \u2192 \u22EE \u2192 Add to Home Screen</div></div><div class="card"><div class="ch"><div class="ci g">\uD83D\uDCCA</div><div><div class="ct">Data Stats</div></div></div><div style="font-size:13px;color:var(--text2);line-height:1.8">Total: <strong>'+S.records.length+'</strong> entries<br>Shops: Highway, Mainroad</div></div>'
+  return'<h2 style="font-size:18px;font-weight:700;margin-bottom:16px">Settings</h2><div class="card"><div class="ch"><div class="ci g">\uD83D\uDD10</div><div><div class="ct">Change Owner Password</div></div></div><div class="fg"><div class="fl">Current Password</div><input class="fi" type="password" maxlength="20" id="curPin" placeholder="Current password"></div><div style="height:8px"></div><div class="fg"><div class="fl">New Password</div><input class="fi" type="password" maxlength="20" id="newPin" placeholder="Min 8 characters"></div><div style="height:8px"></div><div class="fg"><div class="fl">Confirm</div><input class="fi" type="password" maxlength="20" id="confPin" placeholder="Confirm new password"></div><div id="pinMsg" style="font-size:12px;margin-top:8px"></div><button class="save-btn" id="changePin" style="margin-top:10px">Update Owner Password</button></div><div class="card"><div class="ch"><div class="ci a">\uD83C\uDFEA</div><div><div class="ct">Change Staff Passwords</div></div></div><div class="fg"><div class="fl">Role</div><select class="fi" id="staffPinRole"><option value="highway">Highway Branch</option><option value="mainroad">Mainroad Branch</option><option value="production">Production Staff</option><option value="ordering">Ordering Staff</option></select></div><div style="height:8px"></div><div class="fg"><div class="fl">Owner Password (verify)</div><input class="fi" type="password" maxlength="20" id="staffCurPin" placeholder="Owner password"></div><div style="height:8px"></div><div class="fg"><div class="fl">New Staff Password</div><input class="fi" type="password" maxlength="20" id="staffNewPin" placeholder="Min 8 characters"></div><div id="staffPinMsg" style="font-size:12px;margin-top:8px"></div><button class="save-btn" id="changeStaffPin" style="margin-top:10px">Update Staff Password</button></div><div class="card"><div class="ch"><div class="ci b">\uD83D\uDCF1</div><div><div class="ct">Install as App</div></div></div><div style="font-size:12px;color:var(--text2);line-height:1.8"><strong>iPhone:</strong> Safari \u2192 Share \u2192 Add to Home Screen<br><strong>Android:</strong> Chrome \u2192 \u22EE \u2192 Add to Home Screen</div></div><div class="card"><div class="ch"><div class="ci p">\uD83C\uDF19</div><div><div class="ct">Dark Mode</div><div class="cs">Easier on eyes at night</div></div></div><div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px"><span style="font-size:13px;color:var(--text2)">'+(S.darkMode?'Dark mode is ON':'Dark mode is OFF')+'</span><button class="ab '+(S.darkMode?'g':'a')+'" id="toggleDark" style="min-width:60px">'+(S.darkMode?'ON':'OFF')+'</button></div></div><div class="card"><div class="ch"><div class="ci b">\uD83D\uDCE5</div><div><div class="ct">Export Data</div><div class="cs">Download all entries as CSV</div></div></div><button class="save-btn" id="exportCSV" style="margin-top:8px">\uD83D\uDCC4 Download CSV</button></div><div class="card"><div class="ch"><div class="ci g">\uD83D\uDCCA</div><div><div class="ct">Data Stats</div></div></div><div style="font-size:13px;color:var(--text2);line-height:1.8">Total: <strong>'+S.records.length+'</strong> entries \u2022 <strong>'+(S.staffLogs||[]).length+'</strong> staff logs \u2022 <strong>'+S.advOrders.length+'</strong> customer orders<br>Shops: Highway, Mainroad'+(_offlineQueue.length?'<br><span style="color:var(--amber)">\u26A0\uFE0F '+_offlineQueue.length+' entries in offline queue</span>':'')+'</div></div>'
 }
 
 function bindEvents(){
@@ -2955,13 +3026,23 @@ function bindEvents(){
     var giData=JSON.parse(JSON.stringify(S.goodsIn));var giTotal=0;for(var gi=0;gi<giData.length;gi++)giTotal+=giData[gi].amount;
     var notesWithMeta=S.notes||'';if(notesWithMeta.indexOf('[[CR:')>-1)notesWithMeta=notesWithMeta.replace(/\[\[CR:\d+\]\]/g,'').trim();if(S.cashRetained>0)notesWithMeta=(notesWithMeta?notesWithMeta+' ':'')+'[[CR:'+S.cashRetained+']]';
     var entry={id:gid(),shop:S.shop,date:S.date,openingCash:S.oc.slice(),closingCash:S.cc.slice(),openingTotal:dTotal(S.oc),closingTotal:dTotal(S.cc),upiReceived:S.upi,totalBilled:S.billed,walkIns:S.walk,expenses:allExps,vendorPayments:[],totalExpenses:expTotal,totalVendorPayments:venTotal,goodsInward:giData,totalGoodsInward:giTotal,productOrders:JSON.parse(JSON.stringify(S.prodOrders)),cashRetained:S.cashRetained||0,notes:notesWithMeta,savedAt:new Date().toISOString(),savedBy:S.role};
-    callApi('save',{},entry).then(function(){toast('\u2705 Saved to cloud!');syncKnownNames();return doFetch()}).catch(function(e){toast('\u274C '+e.message)}).then(function(){S.saving=false;var b=document.getElementById('saveBtn');if(b){b.textContent='\uD83D\uDCBE Save Entry';b.className='save-btn'}})
+    callApi('save',{},entry).then(function(){toast('\u2705 Saved to cloud!');syncKnownNames();return doFetch()}).catch(function(e){if(!navigator.onLine){_offlineQueue.push(entry);localStorage.setItem('_offQ',JSON.stringify(_offlineQueue));toast('\u26A0\uFE0F Saved offline \u2014 will sync when online')}else{toast('\u274C '+e.message)}}).then(function(){S.saving=false;var b=document.getElementById('saveBtn');if(b){b.textContent='\uD83D\uDCBE Save Entry';b.className='save-btn'}})
   };
-  document.querySelectorAll('[data-delrec]').forEach(function(b){b.onclick=function(){if(!confirm('Delete this entry?'))return;callApi('delete',{id:b.dataset.delrec}).then(function(){toast('Deleted');doFetch()}).catch(function(e){toast('\u274C '+e.message)})}});
+  document.querySelectorAll('[data-delrec]').forEach(function(b){b.onclick=function(){if(!confirm('Delete this entry?'))return;var id=b.dataset.delrec;var entry=null;for(var i=0;i<S.records.length;i++){if(S.records[i].id===id){entry=JSON.parse(JSON.stringify(S.records[i]));break}}callApi('delete',{id:id}).then(function(){if(entry)showUndoToast(entry);else toast('Deleted');doFetch()}).catch(function(e){toast('\u274C '+e.message)})}});
+  // History search, date filter, pagination
+  var hsi=document.getElementById('histSearchInp');if(hsi){hsi.oninput=function(){S.histSearch=hsi.value;S.histPage=0;render()}}
+  var hfi=document.getElementById('histFromInp');if(hfi)hfi.onchange=function(){S.histFrom=hfi.value;S.histPage=0;render()};
+  var hti=document.getElementById('histToInp');if(hti)hti.onchange=function(){S.histTo=hti.value;S.histPage=0;render()};
+  var hcd=document.getElementById('histClearDates');if(hcd)hcd.onclick=function(){S.histFrom='';S.histTo='';S.histPage=0;render()};
+  document.querySelectorAll('[data-histpage]').forEach(function(b){b.onclick=function(){var p=parseInt(b.dataset.histpage);if(p>=0)S.histPage=p;render()}});
   document.querySelectorAll('[data-editrec]').forEach(function(b){b.onclick=function(){S.date=b.dataset.editrec;S.shop=parseInt(b.dataset.editshop);S.tab=0;loadForm();render();toast('\u270E Editing '+fmtD(S.date)+' \u2022 '+SHOPS[S.shop])}});
   var ca=document.getElementById('clearAll');if(ca)ca.onclick=function(){if(!confirm('Delete ALL?'))return;var pin=prompt('Owner Password:');callApi('deleteAll',{pin:pin}).then(function(){toast('Deleted');doFetch()}).catch(function(e){toast('\u274C '+e.message)})};
   var cp=document.getElementById('changePin');if(cp)cp.onclick=function(){var c=document.getElementById('curPin').value,n=document.getElementById('newPin').value,cn=document.getElementById('confPin').value,m=document.getElementById('pinMsg');if(n!==cn){m.textContent='\u274C Passwords dont match';m.style.color='var(--rose)';return}if(n.length<8){m.textContent='\u274C Password must be at least 8 characters';m.style.color='var(--rose)';return}callApi('changePin',{},{currentPin:c,newPin:n,role:'owner'}).then(function(){m.textContent='\u2705 Owner password changed!';m.style.color='var(--green)'}).catch(function(e){m.textContent='\u274C '+e.message;m.style.color='var(--rose)'})};
   var csp=document.getElementById('changeStaffPin');if(csp)csp.onclick=function(){var role=document.getElementById('staffPinRole').value,ownerPin=document.getElementById('staffCurPin').value,newPin=document.getElementById('staffNewPin').value,m=document.getElementById('staffPinMsg');if(!newPin||newPin.length<8){m.textContent='\u274C Password must be at least 8 characters';m.style.color='var(--rose)';return}callApi('changePin',{},{currentPin:ownerPin,newPin:newPin,role:role}).then(function(){m.textContent='\u2705 '+role+' staff password updated!';m.style.color='var(--green)'}).catch(function(e){m.textContent='\u274C '+e.message;m.style.color='var(--rose)'})};
+  // Dark mode toggle
+  var tdm=document.getElementById('toggleDark');if(tdm)tdm.onclick=function(){S.darkMode=!S.darkMode;localStorage.setItem('darkMode',S.darkMode?'1':'0');render()};
+  // CSV export
+  var csvBtn=document.getElementById('exportCSV');if(csvBtn)csvBtn.onclick=exportCSV;
   // Ledger shop toggle
   document.querySelectorAll('[data-ledgershop]').forEach(function(b){b.onclick=function(){var v=b.dataset.ledgershop;S.ledgerShop=v==='all'?'all':parseInt(v);render()}});
   // Ledger view toggle
@@ -3226,9 +3307,18 @@ function bindEvents(){
   // Report date nav
   var rp=document.getElementById('rptPrev');if(rp)rp.onclick=function(){S.reportDate=dateOffset(S.reportDate,-1);render()};
   var rn=document.getElementById('rptNext');if(rn)rn.onclick=function(){if(S.reportDate<today()){S.reportDate=dateOffset(S.reportDate,1);render()}};
+  // Pull to refresh
+  var _ptrStart=0,_ptrActive=false;
+  var appBody=document.querySelector('.app-body');
+  if(appBody){
+    appBody.addEventListener('touchstart',function(e){if(window.scrollY<=0)_ptrStart=e.touches[0].clientY},{passive:true});
+    appBody.addEventListener('touchmove',function(e){if(_ptrStart&&e.touches[0].clientY-_ptrStart>60&&window.scrollY<=0){_ptrActive=true;var ind=document.querySelector('.ptr-indicator');if(ind)ind.classList.add('active')}},{passive:true});
+    appBody.addEventListener('touchend',function(){if(_ptrActive){_ptrActive=false;_ptrStart=0;doFetch()}else{_ptrStart=0}},{passive:true});
+  }
 }
 
 render();
+if(S.darkMode)document.body.classList.add('dark');
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(function(){})}
 </script>
 </body>
