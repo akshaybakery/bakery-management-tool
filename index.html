@@ -1668,6 +1668,18 @@ function renderOrderingGRN(){
   if(S.grnItems.length){
     out+='<button class="save-btn'+(S.saving?' off':'')+'" id="saveGrnBtn">'+(S.saving?'\u23F3 Saving...':'\uD83D\uDCBE Save GRN to Cloud')+'</button>';
   }
+
+  // Show all previously saved goods inward for this date/shop (from all logins)
+  var savedGI=[];
+  for(var i=0;i<S.records.length;i++){var r=S.records[i];if(r.date===S.date&&r.shop==S.grnShop){var gi=r.goodsInward||[];for(var j=0;j<gi.length;j++)savedGI.push({vendor:gi[j].vendor||'Unknown',items:gi[j].items||'',amount:gi[j].amount||0,billNo:gi[j].billNo||'',entryType:gi[j].entryType||'bill',qty:gi[j].qty||0,qtyUnit:gi[j].qtyUnit||'',source:'Owner'})}}
+  for(var i=0;i<(S.grnRecords||[]).length;i++){var gr=S.grnRecords[i];if(gr.date===S.date&&gr.shop==S.grnShop){var gi2=gr.goodsInward||[];for(var j=0;j<gi2.length;j++){var dup=false;for(var m=0;m<savedGI.length;m++){if(savedGI[m].id===gi2[j].id){dup=true;break}}if(!dup)savedGI.push({vendor:gi2[j].vendor||'Unknown',items:gi2[j].items||'',amount:gi2[j].amount||0,billNo:gi2[j].billNo||'',entryType:gi2[j].entryType||'bill',qty:gi2[j].qty||0,qtyUnit:gi2[j].qtyUnit||'',source:'Ordering'})}}}
+  if(savedGI.length){
+    var savedTot=0;for(var i=0;i<savedGI.length;i++)savedTot+=savedGI[i].amount;
+    out+='<div class="card"><div class="ch"><div class="ci t">\uD83D\uDCCB</div><div><div class="ct">Saved Goods Inward</div><div class="cs">'+fmtD(S.date)+' \u2022 '+SHOPS[S.grnShop]+' \u2022 '+savedGI.length+' item'+(savedGI.length>1?'s':'')+'</div></div></div><div class="il">';
+    for(var i=0;i<savedGI.length;i++){var sg=savedGI[i];var det=sg.entryType==='qty'&&sg.qty?(sg.qty+' '+(sg.qtyUnit||'kg')+(sg.items?' \u2022 '+sg.items:'')):(sg.items||'\u2014')+(sg.billNo?' \u2022 Inv #'+sg.billNo:'');out+='<div class="ir"><div><div class="in">'+esc(sg.vendor)+' <span style="font-size:9px;color:var(--text3);font-weight:600">via '+sg.source+'</span></div><div class="ic">'+esc(det)+'</div></div><span class="ia v">'+fmt(sg.amount)+'</span></div>'}
+    out+='<div class="it"><span class="itl">Total Saved</span><span class="ia v">'+fmt(savedTot)+'</span></div></div></div>';
+  }
+
   return out;
 }
 
