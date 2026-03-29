@@ -1412,7 +1412,7 @@ function loadSavedRawMats(){try{return JSON.parse(localStorage.getItem('ab_rawma
 function saveRawMatNames(arr){try{localStorage.setItem('ab_rawmaterials',JSON.stringify(arr))}catch(e){}}
 function addRawMatName(name){if(!name)return;var arr=loadSavedRawMats();if(arr.indexOf(name)===-1){arr.push(name);arr.sort();saveRawMatNames(arr)}}
 
-var PCATS=['Baking','Oil Work','Sweets'];
+var PCATS=['Baking','Oil Work','Sweets','Cream Cakes'];
 var PUNITS=['pcs','kg','g','dozen','batch','tray','box'];
 
 /* Standard Bakery Ingredients (categorized) */
@@ -1472,7 +1472,7 @@ function renderOrders(){
   out+='<div class="card"><div class="ch"><div class="ci g">\uD83D\uDCE6</div><div><div class="ct">Product Orders</div><div class="cs">Daily production requirements</div></div></div>';
   for(var c=0;c<PCATS.length;c++){
     var cat=PCATS[c];var items=byCat[cat]||[];
-    var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
+    var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C','Cream Cakes':'\uD83C\uDF82'};
     out+='<div class="order-cat-hdr">'+(icons[cat]||'')+' '+cat+' ('+items.length+')</div>';
     if(items.length){for(var i=0;i<items.length;i++){var o=items[i].order;out+='<div class="order-item"><div><div style="font-weight:600">'+o.product+'</div>'+(o.notes?'<div style="font-size:10px;color:var(--text3)">'+o.notes+'</div>':'')+'</div><div style="display:flex;align-items:center;gap:8px"><div class="order-qty">'+o.qty+' '+o.unit+'</div><button class="ix" data-delord="'+items[i].idx+'">\u00D7</button></div></div>'}}
   }
@@ -1516,7 +1516,7 @@ function renderOrderingEntry(){
   if(totalItems)out+='<div class="order-summary"><div class="order-summary-grid"><div class="order-summary-item"><div class="order-summary-val">'+totalItems+'</div><div class="order-summary-lbl">Items</div></div><div class="order-summary-item"><div class="order-summary-val">'+totalQty+'</div><div class="order-summary-lbl">Total Qty</div></div><div class="order-summary-item"><div class="order-summary-val">'+SHOPS[S.ordShop]+'</div><div class="order-summary-lbl">Shop</div></div></div></div>';
 
   out+='<div class="card"><div class="ch"><div class="ci g">\uD83D\uDCE6</div><div><div class="ct">Product Orders</div><div class="cs">Add items for production</div></div></div>';
-  var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
+  var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C','Cream Cakes':'\uD83C\uDF82'};
   for(var c=0;c<PCATS.length;c++){
     var cat=PCATS[c];var items=byCat[cat]||[];
     out+='<div class="order-cat-hdr">'+(icons[cat]||'')+' '+cat+' ('+items.length+')</div>';
@@ -1542,7 +1542,7 @@ function renderOrderingEntry(){
     var sByCat={};for(var i=0;i<PCATS.length;i++)sByCat[PCATS[i]]=[];
     for(var i=0;i<savedOrds.length;i++){var cat=savedOrds[i].order.category||'Baking';if(!sByCat[cat])sByCat[cat]=[];sByCat[cat].push(savedOrds[i])}
     var sTotalQty=0;for(var i=0;i<savedOrds.length;i++)sTotalQty+=savedOrds[i].order.qty||0;
-    var sIcons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
+    var sIcons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C','Cream Cakes':'\uD83C\uDF82'};
     out+='<div class="card" style="margin-top:12px;border-left:3px solid var(--green)"><div class="ch"><div class="ci g">\u2705</div><div><div class="ct">Saved Orders \u2022 '+SHOPS[S.ordShop]+'</div><div class="cs">'+savedOrds.length+' items \u2022 '+sTotalQty+' total qty \u2022 '+fmtD(S.date)+'</div></div><div style="margin-left:auto;display:flex;gap:6px"><button class="ab" id="editSavedOrds" style="font-size:11px;padding:5px 12px;border:1px solid var(--border);border-radius:var(--rs);background:var(--card);color:var(--text2);cursor:pointer">\u270E Edit All</button>'+(savedOrdRecId?'<button class="ab" id="delSavedOrds" data-delordid="'+savedOrdRecId+'" style="font-size:11px;padding:5px 12px;border:1px solid var(--rose);border-radius:var(--rs);background:var(--card);color:var(--rose);cursor:pointer">\u00D7 All</button>':'')+'</div></div>';
     for(var c=0;c<PCATS.length;c++){var cat=PCATS[c];var items=sByCat[cat]||[];if(!items.length)continue;
       out+='<div style="font-size:11px;font-weight:700;color:var(--text2);margin:8px 0 4px;text-transform:uppercase">'+(sIcons[cat]||'')+' '+cat+' ('+items.length+')</div>';
@@ -1591,7 +1591,7 @@ function getOrderData(){
 
 // Malayalam translation map for common units and labels
 var ML={pcs:'\u0D0E\u0D23\u0D4D\u0D23\u0D02',kg:'\u0D15\u0D3F.\u0D17\u0D4D\u0D30\u0D3E\u0D02',g:'\u0D17\u0D4D\u0D30\u0D3E\u0D02',dozen:'\u0D21\u0D38\u0D7B',batch:'\u0D2C\u0D3E\u0D1A\u0D4D\u0D1A\u0D4D',tray:'\u0D1F\u0D4D\u0D30\u0D47',box:'\u0D2C\u0D4B\u0D15\u0D4D\u0D38\u0D4D',
-  Baking:'\u0D2C\u0D47\u0D15\u0D4D\u0D15\u0D3F\u0D02\u0D17\u0D4D','Oil Work':'\u0D0E\u0D23\u0D4D\u0D23 \u0D2A\u0D32\u0D39\u0D3E\u0D30\u0D19\u0D4D\u0D19\u0D7E',Sweets:'\u0D2E\u0D1F\u0D4D\u0D1F\u0D41\u0D2A\u0D32\u0D39\u0D3E\u0D30\u0D19\u0D4D\u0D19\u0D7E',
+  Baking:'\u0D2C\u0D47\u0D15\u0D4D\u0D15\u0D3F\u0D02\u0D17\u0D4D','Oil Work':'\u0D0E\u0D23\u0D4D\u0D23 \u0D2A\u0D32\u0D39\u0D3E\u0D30\u0D19\u0D4D\u0D19\u0D7E',Sweets:'\u0D2E\u0D1F\u0D4D\u0D1F\u0D41\u0D2A\u0D32\u0D39\u0D3E\u0D30\u0D19\u0D4D\u0D19\u0D7E','Cream Cakes':'\u0D15\u0D4D\u0D30\u0D40\u0D02 \u0D15\u0D47\u0D15\u0D4D\u0D15\u0D41\u0D15\u0D7E',
   Highway:'\u0D39\u0D48\u0D35\u0D47',Mainroad:'\u0D2E\u0D46\u0D2F\u0D3F\u0D7B \u0D31\u0D4B\u0D21\u0D4D',
   order:'\u0D09\u0D31\u0D4D\u0D2A\u0D3E\u0D26\u0D28 \u0D13\u0D7C\u0D21\u0D7C',dispatch:'\u0D21\u0D3F\u0D38\u0D4D\u200C\u0D2A\u0D3E\u0D1A\u0D4D\u0D1A\u0D4D',total:'\u0D1E\u0D4A\u0D1F\u0D4D\u0D1F\u0D02',items:'\u0D07\u0D28\u0D19\u0D4D\u0D19\u0D7E',units:'\u0D2F\u0D42\u0D23\u0D3F\u0D31\u0D4D\u0D31\u0D41\u0D15\u0D7E'};
 function mlUnit(u){return ML[u]||u}
@@ -1599,7 +1599,7 @@ function mlUnit(u){return ML[u]||u}
 function formatProductionOrder(lang){
   var d=new Date(S.date+'T00:00:00').toLocaleDateString(lang==='ml'?'ml-IN':'en-IN',{weekday:'long',day:'2-digit',month:'short',year:'numeric'});
   var prodMap=getOrderData();
-  var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
+  var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C','Cream Cakes':'\uD83C\uDF82'};
   var totalQty=0,totalItems=0;
   var isML=lang==='ml';
   var msg='\uD83C\uDF5E *AKSHAY BAKERY - '+(isML?ML.order:'PRODUCTION ORDER')+'*\n';
@@ -1628,7 +1628,7 @@ function formatProductionOrder(lang){
 function formatDispatchOrder(lang){
   var d=new Date(S.date+'T00:00:00').toLocaleDateString(lang==='ml'?'ml-IN':'en-IN',{weekday:'long',day:'2-digit',month:'short',year:'numeric'});
   var prodMap=getOrderData();
-  var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
+  var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C','Cream Cakes':'\uD83C\uDF82'};
   var isML=lang==='ml';
   var msg='\uD83D\uDE9A *AKSHAY BAKERY - '+(isML?ML.dispatch:'DISPATCH / SHIPPING')+'*\n';
   msg+='\uD83D\uDCC5 '+d+'\n';
@@ -1684,7 +1684,7 @@ function renderUnifiedOrders(){
   if(totalItems)out+='<div class="order-summary"><div class="order-summary-grid"><div class="order-summary-item"><div class="order-summary-val">'+totalItems+'</div><div class="order-summary-lbl">Items</div></div><div class="order-summary-item"><div class="order-summary-val">'+totalQty+'</div><div class="order-summary-lbl">Total Qty</div></div><div class="order-summary-item"><div class="order-summary-val">'+SHOPS[curShop]+'</div><div class="order-summary-lbl">Shop</div></div></div></div>';
 
   out+='<div class="card"><div class="ch"><div class="ci g">\uD83D\uDCE6</div><div><div class="ct">Product Orders</div><div class="cs">Add items for production</div></div></div>';
-  var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
+  var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C','Cream Cakes':'\uD83C\uDF82'};
   for(var c=0;c<PCATS.length;c++){var cat=PCATS[c];var items=byCat[cat]||[];
     out+='<div class="order-cat-hdr">'+(icons[cat]||'')+' '+cat+' ('+items.length+')</div>';
     if(items.length){for(var i=0;i<items.length;i++){var o=items[i].order;out+='<div class="order-item"><div><div style="font-weight:600">'+esc(o.product)+'</div>'+(o.notes?'<div style="font-size:10px;color:var(--text3)">'+esc(o.notes)+'</div>':'')+'</div><div style="display:flex;align-items:center;gap:8px"><div class="order-qty">'+o.qty+' '+o.unit+'</div><button style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:10px;cursor:pointer;color:var(--text2)" data-editorditem="'+items[i].idx+'">\u270E</button><button class="ix" data-delorditem="'+items[i].idx+'">\u00D7</button></div></div>'}}}
@@ -1785,7 +1785,7 @@ function renderOrderingHistory(){
   if(!allOrders.length){return out+'<div class="es"><div class="esi">\uD83D\uDCCB</div><div class="est">No orders found for this date.</div></div>'}
   var totalQty=0;for(var i=0;i<allOrders.length;i++)totalQty+=allOrders[i].qty||0;
   out+='<div class="order-summary"><div class="order-summary-grid"><div class="order-summary-item"><div class="order-summary-val">'+allOrders.length+'</div><div class="order-summary-lbl">Items</div></div><div class="order-summary-item"><div class="order-summary-val">'+totalQty+'</div><div class="order-summary-lbl">Total Qty</div></div></div></div>';
-  var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
+  var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C','Cream Cakes':'\uD83C\uDF82'};
   for(var c=0;c<PCATS.length;c++){
     var cat=PCATS[c];
     var catItems0=orders0.filter(function(o){return o.category===cat});
@@ -1937,7 +1937,7 @@ function renderProductionOrders(){
   if(!uniqueItems){out+='<div class="es"><div class="esi">\uD83D\uDCE6</div><div class="est">No orders for this date.<br>Shop staff can add orders from their login.</div></div>';return out}
 
   // Show single consolidated list grouped by category
-  var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
+  var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C','Cream Cakes':'\uD83C\uDF82'};
   for(var c=0;c<PCATS.length;c++){
     var cat=PCATS[c];
     var catItems=[];for(var k in prodMap){if(prodMap[k].cat===cat)catItems.push({name:k,data:prodMap[k]})}
@@ -2013,7 +2013,7 @@ function renderRecipeBook(){
     var cat=PCATS[c];
     var catRecipes=S.recipes.filter(function(r){return r.category===cat});
     if(!catRecipes.length)continue;
-    var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
+    var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C','Cream Cakes':'\uD83C\uDF82'};
     out+='<div class="order-cat-hdr">'+(icons[cat]||'')+' '+cat+' ('+catRecipes.length+')</div>';
     for(var i=0;i<catRecipes.length;i++){
       var r=catRecipes[i];var idx=-1;for(var j=0;j<S.recipes.length;j++){if(S.recipes[j]===r){idx=j;break}}
@@ -2273,8 +2273,8 @@ function renderProduction(){
   var todayData=null;
   for(var i=days.length-1;i>=0;i--){todayData=days[i];break;}
   if(todayData){
-    var cats=['Baking','Oil Work','Sweets'];
-    var catColors={'Baking':'var(--green)','Oil Work':'var(--amber)','Sweets':'var(--rose)'};
+    var cats=['Baking','Oil Work','Sweets','Cream Cakes'];
+    var catColors={'Baking':'var(--green)','Oil Work':'var(--amber)','Sweets':'var(--rose)','Cream Cakes':'var(--purple)'};
     out+='<div class="card prod-today"><div class="biz-section-title">\uD83D\uDCC5 Latest Production \u2022 '+fmtD(todayData.date)+'</div>';
     // Category proportion bar
     var catTotal=todayData.totalQty||1;
@@ -2330,7 +2330,7 @@ function renderProduction(){
   out+='<div class="biz-trend-row"><div class="biz-trend-label">SMA (7d) / day</div><div class="biz-trend-vals"><div class="biz-trend-val">'+sma7+'</div><div class="biz-trend-val" style="color:var(--text3);font-size:11px">'+sma30+'</div>'+trendBadgeProd(l7q,p7q)+'</div></div>';
   out+='<div class="biz-trend-row"><div class="biz-trend-label">WMA (7d) / day</div><div class="biz-trend-vals"><div class="biz-trend-val">'+wma7+'</div></div></div>';
   // Per-category trends
-  var cats2=['Baking','Oil Work','Sweets'];var catIcons=['\uD83C\uDF5E','\uD83C\uDF69','\uD83C\uDF6C'];
+  var cats2=['Baking','Oil Work','Sweets','Cream Cakes'];var catIcons=['\uD83C\uDF5E','\uD83C\uDF69','\uD83C\uDF6C','\uD83C\uDF82'];
   for(var c=0;c<cats2.length;c++){
     var catDays=[];for(var i=0;i<days.length;i++)catDays.push({v:days[i].byCat[cats2[c]]||0});
     var csma=Math.round(smaCalc(catDays,'v',7));
