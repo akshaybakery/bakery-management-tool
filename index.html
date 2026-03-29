@@ -1551,7 +1551,12 @@ function renderOrderingEntry(){
   out+='</div>';
 
   if(has0&&has1){
-    out+='<button class="save-btn" id="shareWhatsApp" style="background:linear-gradient(135deg,#25D366,#128C7E)">\uD83D\uDCF2 Share Combined Order via WhatsApp</button>';
+    out+='<div style="display:flex;flex-direction:column;gap:8px">';
+    out+='<button class="save-btn" id="shareOrderWA" style="background:linear-gradient(135deg,#25D366,#128C7E)">\uD83C\uDF5E Share Production Order via WhatsApp</button>';
+    out+='<button class="save-btn" id="shareDispatchWA" style="background:linear-gradient(135deg,#128C7E,#075E54)">\uD83D\uDE9A Share Dispatch Instructions via WhatsApp</button>';
+    out+='<div style="display:flex;gap:8px"><button class="save-btn" id="shareOrderML" style="flex:1;background:linear-gradient(135deg,#6d28d9,#4c1d95);font-size:13px">\uD83C\uDF5E Order (Malayalam)</button>';
+    out+='<button class="save-btn" id="shareDispatchML" style="flex:1;background:linear-gradient(135deg,#4c1d95,#3b0764);font-size:13px">\uD83D\uDE9A Dispatch (Malayalam)</button></div>';
+    out+='</div>';
   }else{
     out+='<div style="text-align:center;font-size:11px;color:var(--text3);padding:6px">\uD83D\uDD12 Save orders for both shops to unlock WhatsApp share</div>';
   }
@@ -1560,65 +1565,85 @@ function renderOrderingEntry(){
   return out;
 }
 
-function formatOrderForWhatsApp(){
-  var d=new Date(S.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long',day:'2-digit',month:'short',year:'numeric'});
-  // Get orders from both shops (check prodOrderRecords and daily records)
+function getOrderData(){
   var orders0=[],orders1=[],seen={};
   for(var i=0;i<(S.prodOrderRecords||[]).length;i++){var por=S.prodOrderRecords[i];if(por.date===S.date){var po=por.productOrders||[];for(var j=0;j<po.length;j++){if(por.shop==0)orders0.push(po[j]);if(por.shop==1)orders1.push(po[j]);if(po[j].id)seen[po[j].id]=1}}}
   var recs0=recsForDateShop(S.date,0),recs1=recsForDateShop(S.date,1);
   for(var i=0;i<recs0.length;i++){var po=recs0[i].productOrders||[];for(var j=0;j<po.length;j++){if(!seen[po[j].id])orders0.push(po[j])}}
   for(var i=0;i<recs1.length;i++){var po=recs1[i].productOrders||[];for(var j=0;j<po.length;j++){if(!seen[po[j].id])orders1.push(po[j])}}
-
-  // Combine into product map: {product: {cat, unit, s0, s1, notes}}
   var prodMap={};
   for(var i=0;i<orders0.length;i++){var o=orders0[i];var k=o.product;if(!prodMap[k])prodMap[k]={cat:o.category||'Baking',unit:o.unit||'pcs',s0:0,s1:0,notes:o.notes||''};prodMap[k].s0+=o.qty||0}
   for(var i=0;i<orders1.length;i++){var o=orders1[i];var k=o.product;if(!prodMap[k])prodMap[k]={cat:o.category||'Baking',unit:o.unit||'pcs',s0:0,s1:0,notes:o.notes||''};prodMap[k].s1+=o.qty||0}
+  return prodMap;
+}
 
-  var msg='\uD83C\uDF5E *AKSHAY BAKERY - PRODUCTION ORDER*\n';
-  msg+='\uD83D\uDCC5 '+d+'\n';
-  msg+='\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n';
+// Malayalam translation map for common units and labels
+var ML={pcs:'\u0D0E\u0D23\u0D4D\u0D23\u0D02',kg:'\u0D15\u0D3F.\u0D17\u0D4D\u0D30\u0D3E\u0D02',g:'\u0D17\u0D4D\u0D30\u0D3E\u0D02',dozen:'\u0D21\u0D38\u0D7B',batch:'\u0D2C\u0D3E\u0D1A\u0D4D\u0D1A\u0D4D',tray:'\u0D1F\u0D4D\u0D30\u0D47',box:'\u0D2C\u0D4B\u0D15\u0D4D\u0D38\u0D4D',
+  Baking:'\u0D2C\u0D47\u0D15\u0D4D\u0D15\u0D3F\u0D02\u0D17\u0D4D','Oil Work':'\u0D0E\u0D23\u0D4D\u0D23 \u0D2A\u0D32\u0D39\u0D3E\u0D30\u0D19\u0D4D\u0D19\u0D7E',Sweets:'\u0D2E\u0D1F\u0D4D\u0D1F\u0D41\u0D2A\u0D32\u0D39\u0D3E\u0D30\u0D19\u0D4D\u0D19\u0D7E',
+  Highway:'\u0D39\u0D48\u0D35\u0D47',Mainroad:'\u0D2E\u0D46\u0D2F\u0D3F\u0D7B \u0D31\u0D4B\u0D21\u0D4D',
+  order:'\u0D09\u0D31\u0D4D\u0D2A\u0D3E\u0D26\u0D28 \u0D13\u0D7C\u0D21\u0D7C',dispatch:'\u0D21\u0D3F\u0D38\u0D4D\u200C\u0D2A\u0D3E\u0D1A\u0D4D\u0D1A\u0D4D',total:'\u0D1E\u0D4A\u0D1F\u0D4D\u0D1F\u0D02',items:'\u0D07\u0D28\u0D19\u0D4D\u0D19\u0D7E',units:'\u0D2F\u0D42\u0D23\u0D3F\u0D31\u0D4D\u0D31\u0D41\u0D15\u0D7E'};
+function mlUnit(u){return ML[u]||u}
+
+function formatProductionOrder(lang){
+  var d=new Date(S.date+'T00:00:00').toLocaleDateString(lang==='ml'?'ml-IN':'en-IN',{weekday:'long',day:'2-digit',month:'short',year:'numeric'});
+  var prodMap=getOrderData();
   var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
   var totalQty=0,totalItems=0;
-
-  // Production totals by category
+  var isML=lang==='ml';
+  var msg='\uD83C\uDF5E *AKSHAY BAKERY - '+(isML?ML.order:'PRODUCTION ORDER')+'*\n';
+  msg+='\uD83D\uDCC5 '+d+'\n';
+  msg+='\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n';
   for(var c=0;c<PCATS.length;c++){
     var cat=PCATS[c];
     var catItems=[];for(var k in prodMap){if(prodMap[k].cat===cat)catItems.push({name:k,data:prodMap[k]})}
     if(!catItems.length)continue;
-    msg+=(icons[cat]||'')+' *'+cat.toUpperCase()+'*\n';
+    msg+=(icons[cat]||'')+' *'+(isML?ML[cat]||cat:cat.toUpperCase())+'*\n';
     for(var i=0;i<catItems.length;i++){
       var p=catItems[i],total=p.data.s0+p.data.s1;
-      msg+='\u2022 '+p.name+' \u2014 *'+total+' '+p.data.unit+'*';
+      msg+='\u2022 '+p.name+' \u2014 *'+total+' '+(isML?mlUnit(p.data.unit):p.data.unit)+'*';
       if(p.data.notes)msg+=' ('+p.data.notes+')';
       msg+='\n';
       totalQty+=total;totalItems++;
     }
     msg+='\n';
   }
-
-  // Dispatch / Shipping section
   msg+='\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n';
-  msg+='\uD83D\uDE9A *DISPATCH / SHIPPING*\n\n';
+  msg+='\uD83D\uDCE6 *'+(isML?ML.total:' Total')+': '+totalItems+' '+(isML?ML.items:'items')+', '+totalQty+' '+(isML?ML.units:'units')+'*\n';
+  msg+='\u23F0 '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  return msg;
+}
+
+function formatDispatchOrder(lang){
+  var d=new Date(S.date+'T00:00:00').toLocaleDateString(lang==='ml'?'ml-IN':'en-IN',{weekday:'long',day:'2-digit',month:'short',year:'numeric'});
+  var prodMap=getOrderData();
+  var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
+  var isML=lang==='ml';
+  var msg='\uD83D\uDE9A *AKSHAY BAKERY - '+(isML?ML.dispatch:'DISPATCH / SHIPPING')+'*\n';
+  msg+='\uD83D\uDCC5 '+d+'\n';
+  msg+='\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n';
+
+  // Highway section
+  msg+='\uD83D\uDFE2 *'+(isML?ML.Highway:'HIGHWAY')+'*\n';
+  for(var c=0;c<PCATS.length;c++){
+    var cat=PCATS[c];var hasItems=false;
+    var catItems=[];for(var k in prodMap){if(prodMap[k].cat===cat&&prodMap[k].s0>0)catItems.push({name:k,data:prodMap[k]})}
+    if(!catItems.length)continue;
+    msg+=(icons[cat]||'')+' '+(isML?ML[cat]||cat:cat)+':\n';
+    for(var i=0;i<catItems.length;i++){var p=catItems[i];msg+='\u2022 '+p.name+' \u2014 *'+p.data.s0+' '+(isML?mlUnit(p.data.unit):p.data.unit)+'*\n'}
+  }
+  msg+='\n';
+
+  // Mainroad section
+  msg+='\uD83D\uDD35 *'+(isML?ML.Mainroad:'MAINROAD')+'*\n';
   for(var c=0;c<PCATS.length;c++){
     var cat=PCATS[c];
-    var catItems=[];for(var k in prodMap){if(prodMap[k].cat===cat)catItems.push({name:k,data:prodMap[k]})}
+    var catItems=[];for(var k in prodMap){if(prodMap[k].cat===cat&&prodMap[k].s1>0)catItems.push({name:k,data:prodMap[k]})}
     if(!catItems.length)continue;
-    var hasShopSplit=false;for(var i=0;i<catItems.length;i++){if(catItems[i].data.s0>0&&catItems[i].data.s1>0){hasShopSplit=true;break}}
-    msg+=(icons[cat]||'')+' *'+cat+'*\n';
-    for(var i=0;i<catItems.length;i++){
-      var p=catItems[i];
-      msg+='\u2022 '+p.name+': ';
-      if(p.data.s0>0)msg+='\uD83D\uDFE2 Hwy '+p.data.s0+p.data.unit;
-      if(p.data.s0>0&&p.data.s1>0)msg+=' | ';
-      if(p.data.s1>0)msg+='\uD83D\uDD35 Main '+p.data.s1+p.data.unit;
-      msg+='\n';
-    }
-    msg+='\n';
+    msg+=(icons[cat]||'')+' '+(isML?ML[cat]||cat:cat)+':\n';
+    for(var i=0;i<catItems.length;i++){var p=catItems[i];msg+='\u2022 '+p.name+' \u2014 *'+p.data.s1+' '+(isML?mlUnit(p.data.unit):p.data.unit)+'*\n'}
   }
-
-  msg+='\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n';
-  msg+='\uD83D\uDCE6 *Total: '+totalItems+' items, '+totalQty+' units*\n';
-  msg+='\u23F0 Sent at '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  msg+='\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n';
+  msg+='\u23F0 '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
   return msg;
 }
 
@@ -1886,33 +1911,33 @@ function renderProductionOrders(){
   var out='<div class="fg" style="margin-bottom:12px"><div class="fl">Date</div><input class="fi" type="date" id="prodOrderDate" value="'+S.orderDate+'"></div>';
 
   var cp=collectProductOrders(S.orderDate);var orders0=cp.orders0,orders1=cp.orders1,allOrders=cp.all;
-  var totalQty=0;for(var i=0;i<allOrders.length;i++)totalQty+=allOrders[i].qty||0;
 
-  out+='<div class="order-summary"><div class="order-summary-grid"><div class="order-summary-item"><div class="order-summary-val">'+allOrders.length+'</div><div class="order-summary-lbl">Total Items</div></div><div class="order-summary-item"><div class="order-summary-val">'+totalQty+'</div><div class="order-summary-lbl">Total Qty</div></div><div class="order-summary-item"><div class="order-summary-val">2</div><div class="order-summary-lbl">Shops</div></div></div></div>';
+  // Build consolidated product map (same product from both shops = single line)
+  var prodMap={};
+  for(var i=0;i<orders0.length;i++){var o=orders0[i];var k=o.product;if(!prodMap[k])prodMap[k]={cat:o.category||'Baking',unit:o.unit||'pcs',total:0,notes:o.notes||''};prodMap[k].total+=o.qty||0}
+  for(var i=0;i<orders1.length;i++){var o=orders1[i];var k=o.product;if(!prodMap[k])prodMap[k]={cat:o.category||'Baking',unit:o.unit||'pcs',total:0,notes:o.notes||''};prodMap[k].total+=o.qty||0}
 
-  if(!allOrders.length){out+='<div class="es"><div class="esi">\uD83D\uDCE6</div><div class="est">No orders for this date.<br>Shop staff can add orders from their login.</div></div>';return out}
+  var uniqueItems=Object.keys(prodMap).length;
+  var totalQty=0;for(var k in prodMap)totalQty+=prodMap[k].total;
 
-  // Group by category, then show per shop
+  out+='<div class="order-summary"><div class="order-summary-grid"><div class="order-summary-item"><div class="order-summary-val">'+uniqueItems+'</div><div class="order-summary-lbl">Products</div></div><div class="order-summary-item"><div class="order-summary-val">'+totalQty+'</div><div class="order-summary-lbl">Total Qty</div></div></div></div>';
+
+  if(!uniqueItems){out+='<div class="es"><div class="esi">\uD83D\uDCE6</div><div class="est">No orders for this date.<br>Shop staff can add orders from their login.</div></div>';return out}
+
+  // Show single consolidated list grouped by category
+  var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
   for(var c=0;c<PCATS.length;c++){
     var cat=PCATS[c];
-    var icons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets':'\uD83C\uDF6C'};
-    var catItems0=orders0.filter(function(o){return o.category===cat});
-    var catItems1=orders1.filter(function(o){return o.category===cat});
-    if(!catItems0.length&&!catItems1.length)continue;
+    var catItems=[];for(var k in prodMap){if(prodMap[k].cat===cat)catItems.push({name:k,data:prodMap[k]})}
+    if(!catItems.length)continue;
+    var catQty=0;for(var i=0;i<catItems.length;i++)catQty+=catItems[i].data.total;
 
-    out+='<div class="card"><div class="ch"><div class="ci '+(c===0?'a':c===1?'b':'p')+'">'+(icons[cat]||'\uD83D\uDCE6')+'</div><div><div class="ct">'+cat+'</div><div class="cs">'+(catItems0.length+catItems1.length)+' items total</div></div></div>';
-
-    // Merge and show combined with shop badges
-    var combined={};
-    for(var i=0;i<catItems0.length;i++){var p=catItems0[i].product;if(!combined[p])combined[p]={s0:0,s1:0,unit:catItems0[i].unit,notes:catItems0[i].notes||''};combined[p].s0+=catItems0[i].qty||0}
-    for(var i=0;i<catItems1.length;i++){var p=catItems1[i].product;if(!combined[p])combined[p]={s0:0,s1:0,unit:catItems1[i].unit,notes:catItems1[i].notes||''};combined[p].s1+=catItems1[i].qty||0}
-
-    for(var p in combined){
-      var item=combined[p];var total=item.s0+item.s1;
-      out+='<div class="order-item"><div><div style="font-weight:600">'+p+'</div><div style="font-size:10px;color:var(--text3)">';
-      if(item.s0)out+='<span class="order-shop-badge s0">Highway: '+item.s0+'</span>';
-      if(item.s1)out+='<span class="order-shop-badge s1">Mainroad: '+item.s1+'</span>';
-      out+='</div></div><div class="order-qty">'+total+' '+item.unit+'</div></div>';
+    out+='<div class="card"><div class="ch"><div class="ci '+(c===0?'a':c===1?'b':'p')+'">'+(icons[cat]||'\uD83D\uDCE6')+'</div><div><div class="ct">'+cat+'</div><div class="cs">'+catItems.length+' products \u2022 '+catQty+' total qty</div></div></div>';
+    for(var i=0;i<catItems.length;i++){
+      var p=catItems[i];
+      out+='<div class="order-item"><div><div style="font-weight:600;font-size:14px">'+esc(p.name)+'</div>';
+      if(p.data.notes)out+='<div style="font-size:10px;color:var(--text3)">'+esc(p.data.notes)+'</div>';
+      out+='</div><div class="order-qty" style="font-size:16px;font-weight:700">'+p.data.total+' '+p.data.unit+'</div></div>';
     }
     out+='</div>';
   }
@@ -3348,7 +3373,10 @@ function bindEvents(){
       ov.remove();render();toast('\u2705 Item updated')
     };
   }});
-  var shareWA=document.getElementById('shareWhatsApp');if(shareWA)shareWA.onclick=function(){var msg=formatOrderForWhatsApp();var url='https://wa.me/?text='+encodeURIComponent(msg);window.open(url,'_blank')};
+  var shareOrdWA=document.getElementById('shareOrderWA');if(shareOrdWA)shareOrdWA.onclick=function(){window.open('https://wa.me/?text='+encodeURIComponent(formatProductionOrder('en')),'_blank')};
+  var shareDispWA=document.getElementById('shareDispatchWA');if(shareDispWA)shareDispWA.onclick=function(){window.open('https://wa.me/?text='+encodeURIComponent(formatDispatchOrder('en')),'_blank')};
+  var shareOrdML=document.getElementById('shareOrderML');if(shareOrdML)shareOrdML.onclick=function(){window.open('https://wa.me/?text='+encodeURIComponent(formatProductionOrder('ml')),'_blank')};
+  var shareDispML=document.getElementById('shareDispatchML');if(shareDispML)shareDispML.onclick=function(){window.open('https://wa.me/?text='+encodeURIComponent(formatDispatchOrder('ml')),'_blank')};
   var delSaved=document.getElementById('delSavedOrds');if(delSaved)delSaved.onclick=function(){
     if(!confirm('Delete this saved order?'))return;
     var id=delSaved.dataset.delordid;
