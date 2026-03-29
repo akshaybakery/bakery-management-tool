@@ -145,9 +145,9 @@ function saveEntry(entry) {
         if (idCol >= 0 && data[i][idCol] === entry.id) {
           sheet.deleteRow(i + 1);
         }
-      } else if (entry.type === 'productOrder') {
-        // Product orders: replace by shop+date+type (one per shop per date)
-        if (rowType === 'productOrder' && String(data[i][shopCol]) === String(entry.shop) && sheetDate === entry.date) {
+      } else if (entry.type === 'productOrder' || entry.type === 'wastage') {
+        // Product orders & wastage: replace by shop+date+type (one per shop per date)
+        if (rowType === entry.type && String(data[i][shopCol]) === String(entry.shop) && sheetDate === entry.date) {
           sheet.deleteRow(i + 1);
         }
       } else if (!entry.type) {
