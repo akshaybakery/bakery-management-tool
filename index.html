@@ -2200,12 +2200,12 @@ function prodDayAgg(shop,daysBack){
   var t=new Date(today()),cutoff=new Date(t);cutoff.setDate(cutoff.getDate()-daysBack);
   var cutStr=toISO(cutoff);
   var map={};
-  for(var i=0;i<S.records.length;i++){
-    var r=S.records[i];if(r.date<cutStr)continue;
-    if(shop!=='all'&&r.shop!=parseInt(shop))continue;
+  function addOrders(r){
+    if(r.date<cutStr)return;
+    if(shop!=='all'&&r.shop!=parseInt(shop))return;
     var orders=r.productOrders||[];
-    if(!orders.length)continue;
-    if(!map[r.date])map[r.date]={date:r.date,totalQty:0,byCat:{Baking:0,'Oil Work':0,Sweets:0},products:{},items:0};
+    if(!orders.length)return;
+    if(!map[r.date])map[r.date]={date:r.date,totalQty:0,byCat:{Baking:0,'Oil Work':0,Sweets:0,'Cream Cakes':0},products:{},items:0};
     for(var j=0;j<orders.length;j++){
       var q=parseInt(orders[j].qty)||0;
       map[r.date].totalQty+=q;
@@ -2214,6 +2214,8 @@ function prodDayAgg(shop,daysBack){
       map[r.date].items++;
     }
   }
+  for(var i=0;i<S.records.length;i++)addOrders(S.records[i]);
+  for(var i=0;i<(S.prodOrderRecords||[]).length;i++)addOrders(S.prodOrderRecords[i]);
   var arr=[];for(var k in map)arr.push(map[k]);
   arr.sort(function(a,b){return a.date<b.date?-1:1});
   return arr;
@@ -2316,7 +2318,7 @@ function renderProduction(){
     out+='<div class="prod-cat-bar">';
     for(var c=0;c<cats.length;c++){var pct=(todayData.byCat[cats[c]]||0)/catTotal*100;if(pct>0)out+='<div style="width:'+pct+'%;background:'+catColors[cats[c]]+'"></div>'}
     out+='</div>';
-    out+='<div class="prod-legend"><span style="--c:var(--green)">\u2022 Baking '+(todayData.byCat.Baking||0)+'</span><span style="--c:var(--amber)">\u2022 Oil Work '+(todayData.byCat['Oil Work']||0)+'</span><span style="--c:var(--rose)">\u2022 Sweets '+(todayData.byCat.Sweets||0)+'</span></div>';
+    out+='<div class="prod-legend"><span style="--c:var(--green)">\u2022 Baking '+(todayData.byCat.Baking||0)+'</span><span style="--c:var(--amber)">\u2022 Oil Work '+(todayData.byCat['Oil Work']||0)+'</span><span style="--c:var(--rose)">\u2022 Sweets '+(todayData.byCat.Sweets||0)+'</span><span style="--c:var(--purple)">\u2022 Cream Cakes '+(todayData.byCat['Cream Cakes']||0)+'</span></div>';
     // Product list
     var prods=todayData.products;var prodArr=[];for(var k in prods)prodArr.push({name:k,qty:prods[k]});
     prodArr.sort(function(a,b){return b.qty-a.qty});
@@ -2334,20 +2336,18 @@ function renderProduction(){
 
   // === CATEGORY BREAKDOWN (stacked bars) ===
   if(last7.length>=3){
-    var catCols=['#1a6b4a','#b8860b','#c0392b'];
+    var catCols={'Baking':'#1a6b4a','Oil Work':'#b8860b','Sweets':'#c0392b','Cream Cakes':'#6d28d9'};
     var mxCat=1;for(var i=0;i<last7.length;i++){if(last7[i].totalQty>mxCat)mxCat=last7[i].totalQty}
     out+='<div class="card"><div class="biz-section-title">\uD83C\uDF70 Category Breakdown</div>';
-    out+='<div class="prod-legend"><span>\u2022 Baking</span><span>\u2022 Oil Work</span><span>\u2022 Sweets</span></div>';
+    out+='<div class="prod-legend"><span>\u2022 Baking</span><span>\u2022 Oil Work</span><span>\u2022 Sweets</span><span>\u2022 Cream Cakes</span></div>';
     out+='<div class="bc">';
+    var bdCats=['Cream Cakes','Sweets','Oil Work','Baking'];
     for(var i=0;i<last7.length;i++){
       var dl=new Date(last7[i].date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short'});
-      var bk=last7[i].byCat.Baking||0,ow=last7[i].byCat['Oil Work']||0,sw=last7[i].byCat.Sweets||0;
-      var tot=bk+ow+sw;var hh=Math.max(tot/mxCat*100,4);
-      var bkH=tot>0?bk/tot*hh:0,owH=tot>0?ow/tot*hh:0,swH=tot>0?sw/tot*hh:0;
+      var tot=last7[i].totalQty||0;var hh=Math.max(tot/mxCat*100,4);
       out+='<div class="bcc"><div style="width:100%;display:flex;flex-direction:column;align-items:stretch;height:'+hh+'%">';
-      if(swH>0)out+='<div style="flex:'+swH+';background:#c0392b;border-radius:3px 3px 0 0;min-height:2px"></div>';
-      if(owH>0)out+='<div style="flex:'+owH+';background:#b8860b;min-height:2px"></div>';
-      if(bkH>0)out+='<div style="flex:'+bkH+';background:#1a6b4a;'+(swH===0&&owH===0?'border-radius:3px 3px 0 0;':'')+'min-height:2px"></div>';
+      var isFirst=true;
+      for(var ci=0;ci<bdCats.length;ci++){var cv=last7[i].byCat[bdCats[ci]]||0;if(cv>0){var fh=tot>0?cv/tot*hh:0;out+='<div style="flex:'+fh+';background:'+catCols[bdCats[ci]]+';'+(isFirst?'border-radius:3px 3px 0 0;':'')+'min-height:2px"></div>';isFirst=false}}
       out+='</div><span class="blb">'+dl+'</span></div>';
     }
     out+='</div></div>';
