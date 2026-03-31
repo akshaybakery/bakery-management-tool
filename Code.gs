@@ -1,5 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
-// AKSHAY BAKERY TRACKER — Google Apps Script Backend v3
+// AKSHAY BAKERY TRACKER — Google Apps Script Backend v4
+// Performance optimized: batch operations, minimal sheet calls
 // ═══════════════════════════════════════════════════════════════
 const SHEET_NAME = 'Entries';
 const CONFIG_SHEET = 'Config';
@@ -61,33 +62,56 @@ function getAllEntries(params) {
     return { success: true, data: [] };
   }
 
+  // Single read — get all data in one call
   const data = sheet.getDataRange().getValues();
   const headers = data[0].map(function(h){return String(h)});
   const entries = [];
   const jsonFields = ['openingCash','closingCash','expenses','vendorPayments','goodsInward','productOrders','ingredients','method','materials'];
   const numFields = ['shop','openingTotal','closingTotal','upiReceived','totalBilled','walkIns','totalExpenses','totalVendorPayments','totalGoodsInward','cashRetained','qty'];
 
-  for (let i = 1; i < data.length; i++) {
-    const row = {};
-    headers.forEach((h, j) => {
-      let val = data[i][j];
-      if (jsonFields.indexOf(h) >= 0) {
-        try { val = JSON.parse(val); } catch(e) { val = h.includes('Cash') ? [0,0,0,0,0,0,0] : []; }
-      }
-      if (numFields.indexOf(h) >= 0) {
-        val = Number(val) || 0;
-      }
-      row[h] = val;
-    });
-    entries.push(row);
-  }
+  // Pre-compute field indices for faster lookup
+  const jsonIdx = new Set();
+  const numIdx = new Set();
+  headers.forEach((h, j) => {
+    if (jsonFields.indexOf(h) >= 0) jsonIdx.add(j);
+    if (numFields.indexOf(h) >= 0) numIdx.add(j);
+  });
 
+  // Staff filter: compute cutoff once
+  var staffFilter = false, cutoffStr = '';
   if (params.role === 'staff') {
+    staffFilter = true;
     const now = new Date();
     const cutoff = new Date(now);
     cutoff.setDate(cutoff.getDate() - 2);
-    const cutoffStr = Utilities.formatDate(cutoff, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-    return { success: true, data: entries.filter(e => e.date >= cutoffStr) };
+    cutoffStr = Utilities.formatDate(cutoff, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+
+  const dateIdx = headers.indexOf('date');
+
+  for (let i = 1; i < data.length; i++) {
+    // Early filter for staff — skip old rows before parsing JSON
+    if (staffFilter && dateIdx >= 0) {
+      var rowDate = data[i][dateIdx];
+      if (rowDate instanceof Date) {
+        rowDate = Utilities.formatDate(rowDate, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+      } else {
+        rowDate = String(rowDate).substring(0, 10);
+      }
+      if (rowDate < cutoffStr) continue;
+    }
+
+    const row = {};
+    for (let j = 0; j < headers.length; j++) {
+      let val = data[i][j];
+      if (jsonIdx.has(j)) {
+        try { val = JSON.parse(val); } catch(e) { val = headers[j].includes('Cash') ? [0,0,0,0,0,0,0] : []; }
+      } else if (numIdx.has(j)) {
+        val = Number(val) || 0;
+      }
+      row[headers[j]] = val;
+    }
+    entries.push(row);
   }
 
   return { success: true, data: entries };
@@ -130,35 +154,43 @@ function saveEntry(entry) {
     }
   }
 
+  // ── Find rows to delete (batch collect, then delete in reverse) ──
   if (sheet.getLastRow() > 1) {
     const data = sheet.getDataRange().getValues();
     var idCol = headers.indexOf('id');
     var typeCol = headers.indexOf('type');
     var shopCol = headers.indexOf('shop');
     var dateCol = headers.indexOf('date');
-    for (let i = data.length - 1; i >= 1; i--) {
+    var rowsToDelete = [];
+
+    for (let i = 1; i < data.length; i++) {
       var sheetDate = data[i][dateCol] instanceof Date ? Utilities.formatDate(data[i][dateCol], Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(data[i][dateCol]).substring(0,10);
       var rowType = typeCol >= 0 ? String(data[i][typeCol] || '') : '';
+
       if (entry.type === 'activityLog' || entry.type === 'staffLog') {
-        // Activity logs and staff logs are never overwritten — always append
+        // Never overwrite — always append
       } else if (entry.type === 'advanceOrder' || entry.type === 'recipe' || entry.type === 'rawMaterial' || entry.type === 'goodsInward') {
         if (idCol >= 0 && data[i][idCol] === entry.id) {
-          sheet.deleteRow(i + 1);
+          rowsToDelete.push(i + 1);
         }
       } else if (entry.type === 'productOrder' || entry.type === 'wastage') {
-        // Product orders & wastage: replace by shop+date+type (one per shop per date)
         if (rowType === entry.type && String(data[i][shopCol]) === String(entry.shop) && sheetDate === entry.date) {
-          sheet.deleteRow(i + 1);
+          rowsToDelete.push(i + 1);
         }
       } else if (!entry.type) {
-        // Daily entries: replace by shop+date (only delete other daily entries, not typed ones)
         if (!rowType && String(data[i][shopCol]) === String(entry.shop) && sheetDate === entry.date) {
-          sheet.deleteRow(i + 1);
+          rowsToDelete.push(i + 1);
         }
       }
     }
+
+    // Delete in reverse order to preserve row indices
+    for (var d = rowsToDelete.length - 1; d >= 0; d--) {
+      sheet.deleteRow(rowsToDelete[d]);
+    }
   }
 
+  // ── Build row data ──
   const jsonFields = ['openingCash','closingCash','expenses','vendorPayments','goodsInward','productOrders','ingredients','method','materials'];
   const row = headers.map(function(h) {
     if (jsonFields.indexOf(h) >= 0) {
@@ -169,21 +201,21 @@ function saveEntry(entry) {
 
   sheet.appendRow(row);
 
-  // Save activity log for staff tracking (daily entries only)
+  // Save compact staff log for daily entries (only key fields, not full copy)
   if (!entry.type) {
-    var logEntry = {};
-    for (var k in entry) logEntry[k] = entry[k];
-    logEntry.type = 'staffLog';
-    logEntry.id = entry.id + '_log_' + new Date().getTime();
     var logRow = headers.map(function(h) {
-      if (jsonFields.indexOf(h) >= 0) {
-        return JSON.stringify(logEntry[h] || []);
+      if (h === 'type') return 'staffLog';
+      if (h === 'id') return entry.id + '_log_' + new Date().getTime();
+      // Only keep essential tracking fields in log, skip bulky JSON
+      if (h === 'openingCash' || h === 'closingCash' || h === 'expenses' || h === 'vendorPayments' || h === 'goodsInward' || h === 'productOrders' || h === 'ingredients' || h === 'method' || h === 'materials') {
+        return '[]';
       }
-      return logEntry[h] !== undefined ? logEntry[h] : '';
+      return entry[h] !== undefined ? entry[h] : '';
     });
     sheet.appendRow(logRow);
   }
 
+  // Sort by date (descending) — only if more than a few rows
   if (sheet.getLastRow() > 2) {
     var dateIdx = headers.indexOf('date');
     if (dateIdx >= 0) {
