@@ -1602,6 +1602,7 @@ function saveRawMatNames(arr){try{safeLSSet('ab_rawmaterials',JSON.stringify(arr
 function addRawMatName(name){if(!name)return;var arr=loadSavedRawMats();if(arr.indexOf(name)===-1){arr.push(name);arr.sort();saveRawMatNames(arr)}}
 
 var PCATS=['Baking','Oil Work','Sweets & Snacks','Cream Cakes'];
+function normCat(c){if(c==='Sweets')return'Sweets & Snacks';return c||'Baking'}
 var PUNITS=['pcs','kg','g','dozen','batch','tray','box'];
 
 /* Standard Bakery Ingredients (categorized) */
@@ -1653,7 +1654,7 @@ function renderOrders(){
 
   // Group orders by category
   var byCat={};for(var i=0;i<PCATS.length;i++)byCat[PCATS[i]]=[];
-  for(var i=0;i<S.prodOrders.length;i++){var o=S.prodOrders[i];var cat=o.category||'Baking';if(!byCat[cat])byCat[cat]=[];byCat[cat].push({idx:i,order:o})}
+  for(var i=0;i<S.prodOrders.length;i++){var o=S.prodOrders[i];var cat=normCat(o.category);if(!byCat[cat])byCat[cat]=[];byCat[cat].push({idx:i,order:o})}
   var totalItems=S.prodOrders.length,totalQty=0;for(var i=0;i<S.prodOrders.length;i++)totalQty+=S.prodOrders[i].qty||0;
 
   if(totalItems)out+='<div class="order-summary"><div class="order-summary-grid"><div class="order-summary-item"><div class="order-summary-val">'+totalItems+'</div><div class="order-summary-lbl">Items</div></div><div class="order-summary-item"><div class="order-summary-val">'+totalQty+'</div><div class="order-summary-lbl">Total Qty</div></div><div class="order-summary-item"><div class="order-summary-val">'+SHOPS[S.shop]+'</div><div class="order-summary-lbl">Shop</div></div></div></div>';
@@ -1699,7 +1700,7 @@ function renderOrderingEntry(){
 
   // Order list grouped by category
   var byCat={};for(var i=0;i<PCATS.length;i++)byCat[PCATS[i]]=[];
-  for(var i=0;i<S.ordItems.length;i++){var o=S.ordItems[i];var cat=o.category||'Baking';if(!byCat[cat])byCat[cat]=[];byCat[cat].push({idx:i,order:o})}
+  for(var i=0;i<S.ordItems.length;i++){var o=S.ordItems[i];var cat=normCat(o.category);if(!byCat[cat])byCat[cat]=[];byCat[cat].push({idx:i,order:o})}
   var totalItems=S.ordItems.length,totalQty=0;for(var i=0;i<S.ordItems.length;i++)totalQty+=S.ordItems[i].qty||0;
 
   if(totalItems)out+='<div class="order-summary"><div class="order-summary-grid"><div class="order-summary-item"><div class="order-summary-val">'+totalItems+'</div><div class="order-summary-lbl">Items</div></div><div class="order-summary-item"><div class="order-summary-val">'+totalQty+'</div><div class="order-summary-lbl">Total Qty</div></div><div class="order-summary-item"><div class="order-summary-val">'+SHOPS[S.ordShop]+'</div><div class="order-summary-lbl">Shop</div></div></div></div>';
@@ -1730,7 +1731,7 @@ function renderOrderingEntry(){
   for(var i=0;i<S.records.length;i++){var r=S.records[i];if(r.shop==S.ordShop&&r.date===S.date){var po=r.productOrders||[];for(var j=0;j<po.length;j++){var dup=false;for(var k=0;k<savedOrds.length;k++){if(savedOrds[k].order.id===po[j].id){dup=true;break}}if(!dup)savedOrds.push({order:po[j],recId:r.id,idx:j,source:'daily'})}}}
   if(savedOrds.length){
     var sByCat={};for(var i=0;i<PCATS.length;i++)sByCat[PCATS[i]]=[];
-    for(var i=0;i<savedOrds.length;i++){var cat=savedOrds[i].order.category||'Baking';if(!sByCat[cat])sByCat[cat]=[];sByCat[cat].push(savedOrds[i])}
+    for(var i=0;i<savedOrds.length;i++){var cat=normCat(savedOrds[i].order.category);if(!sByCat[cat])sByCat[cat]=[];sByCat[cat].push(savedOrds[i])}
     var sTotalQty=0;for(var i=0;i<savedOrds.length;i++)sTotalQty+=savedOrds[i].order.qty||0;
     var sIcons={'Baking':'\uD83C\uDF5E','Oil Work':'\uD83C\uDF5F','Sweets & Snacks':'\uD83C\uDF6C','Cream Cakes':'\uD83C\uDF82'};
     out+='<div class="card" style="margin-top:12px;border-left:3px solid var(--green)"><div class="ch"><div class="ci g">\u2705</div><div><div class="ct">Saved Orders \u2022 '+SHOPS[S.ordShop]+'</div><div class="cs">'+savedOrds.length+' items \u2022 '+sTotalQty+' total qty \u2022 '+fmtD(S.date)+'</div></div><div style="margin-left:auto;display:flex;gap:6px"><button class="ab" id="printShopOrderBtn" style="font-size:11px;padding:5px 12px;border:1px solid var(--border);border-radius:var(--rs);background:var(--card);color:var(--text2);cursor:pointer">\uD83D\uDDA8 Print</button><button class="ab" id="editSavedOrds" style="font-size:11px;padding:5px 12px;border:1px solid var(--border);border-radius:var(--rs);background:var(--card);color:var(--text2);cursor:pointer">\u270E Edit All</button>'+(savedOrdRecId?'<button class="ab" id="delSavedOrds" data-delordid="'+savedOrdRecId+'" style="font-size:11px;padding:5px 12px;border:1px solid var(--rose);border-radius:var(--rs);background:var(--card);color:var(--rose);cursor:pointer">\u00D7 All</button>':'')+'</div></div>';
@@ -1777,8 +1778,8 @@ function getOrderData(){
   for(var i=0;i<recs0.length;i++){var po=recs0[i].productOrders||[];for(var j=0;j<po.length;j++){if(!seen[po[j].id])orders0.push(po[j])}}
   for(var i=0;i<recs1.length;i++){var po=recs1[i].productOrders||[];for(var j=0;j<po.length;j++){if(!seen[po[j].id])orders1.push(po[j])}}
   var prodMap={};
-  for(var i=0;i<orders0.length;i++){var o=orders0[i];var k=o.product;if(!prodMap[k])prodMap[k]={cat:o.category||'Baking',unit:o.unit||'pcs',s0:0,s1:0,notes:o.notes||''};prodMap[k].s0+=o.qty||0}
-  for(var i=0;i<orders1.length;i++){var o=orders1[i];var k=o.product;if(!prodMap[k])prodMap[k]={cat:o.category||'Baking',unit:o.unit||'pcs',s0:0,s1:0,notes:o.notes||''};prodMap[k].s1+=o.qty||0}
+  for(var i=0;i<orders0.length;i++){var o=orders0[i];var k=o.product;if(!prodMap[k])prodMap[k]={cat:normCat(o.category),unit:o.unit||'pcs',s0:0,s1:0,notes:o.notes||''};prodMap[k].s0+=o.qty||0}
+  for(var i=0;i<orders1.length;i++){var o=orders1[i];var k=o.product;if(!prodMap[k])prodMap[k]={cat:normCat(o.category),unit:o.unit||'pcs',s0:0,s1:0,notes:o.notes||''};prodMap[k].s1+=o.qty||0}
   return prodMap;
 }
 
@@ -1872,7 +1873,7 @@ function printShopOrder(shop,orders){
   var d=new Date(S.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
   var time=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
   var byCat={};for(var i=0;i<PCATS.length;i++)byCat[PCATS[i]]=[];
-  for(var i=0;i<orders.length;i++){var o=orders[i].order||orders[i];var cat=o.category||'Baking';if(!byCat[cat])byCat[cat]=[];byCat[cat].push(o)}
+  for(var i=0;i<orders.length;i++){var o=orders[i].order||orders[i];var cat=normCat(o.category);if(!byCat[cat])byCat[cat]=[];byCat[cat].push(o)}
   var totalQty=0,totalItems=orders.length;
   for(var i=0;i<orders.length;i++)totalQty+=(orders[i].order||orders[i]).qty||0;
 
@@ -2006,7 +2007,7 @@ function renderUnifiedOrders(){
 
   // Current unsaved items
   var byCat={};for(var i=0;i<PCATS.length;i++)byCat[PCATS[i]]=[];
-  for(var i=0;i<S.ordItems.length;i++){var o=S.ordItems[i];var cat=o.category||'Baking';if(!byCat[cat])byCat[cat]=[];byCat[cat].push({idx:i,order:o})}
+  for(var i=0;i<S.ordItems.length;i++){var o=S.ordItems[i];var cat=normCat(o.category);if(!byCat[cat])byCat[cat]=[];byCat[cat].push({idx:i,order:o})}
   var totalItems=S.ordItems.length,totalQty=0;for(var i=0;i<S.ordItems.length;i++)totalQty+=S.ordItems[i].qty||0;
 
   if(totalItems)out+='<div class="order-summary"><div class="order-summary-grid"><div class="order-summary-item"><div class="order-summary-val">'+totalItems+'</div><div class="order-summary-lbl">Items</div></div><div class="order-summary-item"><div class="order-summary-val">'+totalQty+'</div><div class="order-summary-lbl">Total Qty</div></div><div class="order-summary-item"><div class="order-summary-val">'+SHOPS[curShop]+'</div><div class="order-summary-lbl">Shop</div></div></div></div>';
@@ -2031,7 +2032,7 @@ function renderUnifiedOrders(){
   for(var i=0;i<S.records.length;i++){var r=S.records[i];if(r.shop==curShop&&r.date===S.date){var po=r.productOrders||[];for(var j=0;j<po.length;j++){var dup=false;for(var k=0;k<savedOrds.length;k++){if(savedOrds[k].order.id===po[j].id){dup=true;break}}if(!dup)savedOrds.push({order:po[j],recId:r.id,idx:j,source:'daily'})}}}
   if(savedOrds.length){
     var sByCat={};for(var i=0;i<PCATS.length;i++)sByCat[PCATS[i]]=[];
-    for(var i=0;i<savedOrds.length;i++){var scat=savedOrds[i].order.category||'Baking';if(!sByCat[scat])sByCat[scat]=[];sByCat[scat].push(savedOrds[i])}
+    for(var i=0;i<savedOrds.length;i++){var scat=normCat(savedOrds[i].order.category);if(!sByCat[scat])sByCat[scat]=[];sByCat[scat].push(savedOrds[i])}
     var sTotalQty=0;for(var i=0;i<savedOrds.length;i++)sTotalQty+=savedOrds[i].order.qty||0;
     out+='<div class="card" style="margin-top:12px;border-left:3px solid var(--green)"><div class="ch"><div class="ci g">\u2705</div><div><div class="ct">Saved Orders \u2022 '+SHOPS[curShop]+'</div><div class="cs">'+savedOrds.length+' items \u2022 '+sTotalQty+' total qty \u2022 '+fmtD(S.date)+'</div></div><div style="margin-left:auto;display:flex;gap:6px"><button class="ab" id="printUOSavedBtn" style="font-size:11px;padding:5px 12px;border:1px solid var(--border);border-radius:var(--rs);background:var(--card);color:var(--text2);cursor:pointer">\uD83D\uDDA8 Print</button><button class="ab" id="editUOSaved" style="font-size:11px;padding:5px 12px;border:1px solid var(--border);border-radius:var(--rs);background:var(--card);color:var(--text2);cursor:pointer">\u270E Edit All</button></div></div>';
     for(var c=0;c<PCATS.length;c++){var cat=PCATS[c];var sitems=sByCat[cat]||[];if(!sitems.length)continue;
@@ -2255,8 +2256,8 @@ function renderProductionOrders(){
 
   // Build consolidated product map (same product from both shops = single line)
   var prodMap={};
-  for(var i=0;i<orders0.length;i++){var o=orders0[i];var k=o.product;if(!prodMap[k])prodMap[k]={cat:o.category||'Baking',unit:o.unit||'pcs',total:0,notes:o.notes||''};prodMap[k].total+=o.qty||0}
-  for(var i=0;i<orders1.length;i++){var o=orders1[i];var k=o.product;if(!prodMap[k])prodMap[k]={cat:o.category||'Baking',unit:o.unit||'pcs',total:0,notes:o.notes||''};prodMap[k].total+=o.qty||0}
+  for(var i=0;i<orders0.length;i++){var o=orders0[i];var k=o.product;if(!prodMap[k])prodMap[k]={cat:normCat(o.category),unit:o.unit||'pcs',total:0,notes:o.notes||''};prodMap[k].total+=o.qty||0}
+  for(var i=0;i<orders1.length;i++){var o=orders1[i];var k=o.product;if(!prodMap[k])prodMap[k]={cat:normCat(o.category),unit:o.unit||'pcs',total:0,notes:o.notes||''};prodMap[k].total+=o.qty||0}
 
   var uniqueItems=Object.keys(prodMap).length;
   var totalQty=0;for(var k in prodMap)totalQty+=prodMap[k].total;
