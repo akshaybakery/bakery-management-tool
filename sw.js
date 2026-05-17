@@ -1,4 +1,4 @@
-const CACHE_NAME = 'akshay-bakery-v47';
+const CACHE_NAME = 'akshay-bakery-v48';
 const APP_SHELL = [
   './',
   './index.html',
