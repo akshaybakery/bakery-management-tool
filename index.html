@@ -676,12 +676,12 @@ function stopCameraStream(){if(S.clockStream){S.clockStream.getTracks().forEach(
 function getEmpById(id){for(var i=0;i<S.employees.length;i++){if(S.employees[i].id===id)return S.employees[i]}return null}
 function getEmpName(id){var e=getEmpById(id);return e?e.name:'Unknown'}
 function getNearestShopLocation(lat,lng){var nearest=null,minDist=Infinity;for(var i=0;i<S.shopLocations.length;i++){var sl=S.shopLocations[i];var d=haversine(lat,lng,sl.lat,sl.lng);if(d<minDist){minDist=d;nearest=sl}}return{location:nearest,distance:minDist}}
-function loadOrderItemsFromSaved(){var items=[],seen={};var shop=S.role==='ordering'?S.ordShop:S.role==='staff'?S.shop:S.ordShop;for(var i=0;i<(S.prodOrderRecords||[]).length;i++){var por=S.prodOrderRecords[i];if(por.shop==shop&&por.date===S.date){var po=por.productOrders||[];for(var j=0;j<po.length;j++){if(po[j].id)seen[po[j].id]=1;items.push(JSON.parse(JSON.stringify(po[j])))}}}for(var i=0;i<S.records.length;i++){var r=S.records[i];if(r.shop==shop&&r.date===S.date){var po=r.productOrders||[];for(var j=0;j<po.length;j++){if(!seen[po[j].id])items.push(JSON.parse(JSON.stringify(po[j])))}}}S.ordItems=items}
+function loadOrderItemsFromSaved(){var items=[],seen={};var shop=S.role==='ordering'?S.ordShop:S.role==='staff'?S.shop:S.ordShop;for(var i=0;i<(S.prodOrderRecords||[]).length;i++){var por=S.prodOrderRecords[i];if(por.shop==shop&&por.date===S.date){var po=por.productOrders||[];for(var j=0;j<po.length;j++){var _k=po[j].id||(po[j].product+'|'+po[j].qty+'|'+po[j].unit);seen[_k]=1;items.push(JSON.parse(JSON.stringify(po[j])))}}}for(var i=0;i<S.records.length;i++){var r=S.records[i];if(r.shop==shop&&r.date===S.date){var po=r.productOrders||[];for(var j=0;j<po.length;j++){var _k=po[j].id||(po[j].product+'|'+po[j].qty+'|'+po[j].unit);if(!seen[_k]){seen[_k]=1;items.push(JSON.parse(JSON.stringify(po[j])))}}}}S.ordItems=items}
 function doFetch(){
   if(!getAuthToken()){resetAppSession();return}
   S.loading=true;render();
-  var params={};
-  callApi('getAll',params).then(function(res){var d=res.data||[];S.records=[];S.staffLogs=[];S.activityLogs=[];S.recipes=[];S.rawMatRecords=[];S.grnRecords=[];S.advOrders=[];S.prodOrderRecords=[];S.wastRecords=[];S.employees=[];S.attendanceRecords=[];S.leaveRequests=[];S.shopLocations=[];S.salaryRecords=[];for(var i=0;i<d.length;i++){parseRecord(d[i]);if(d[i].type==='recipe')S.recipes.push(d[i]);else if(d[i].type==='rawMaterial')S.rawMatRecords.push(d[i]);else if(d[i].type==='goodsInward')S.grnRecords.push(d[i]);else if(d[i].type==='advanceOrder')S.advOrders.push(d[i]);else if(d[i].type==='staffLog')S.staffLogs.push(d[i]);else if(d[i].type==='activityLog')S.activityLogs.push(d[i]);else if(d[i].type==='productOrder')S.prodOrderRecords.push(d[i]);else if(d[i].type==='wastage')S.wastRecords.push(d[i]);else if(d[i].type==='employee')S.employees.push(d[i]);else if(d[i].type==='attendance')S.attendanceRecords.push(d[i]);else if(d[i].type==='leaveRequest')S.leaveRequests.push(d[i]);else if(d[i].type==='shopLocation')S.shopLocations.push(d[i]);else if(d[i].type==='salaryRecord')S.salaryRecords.push(d[i]);else S.records.push(d[i])}S.connected=true;syncKnownNames();syncProductNames();flushOfflineQueue()}).catch(function(e){toast('\u274C '+e.message);S.connected=false}).then(function(){S.loading=false;loadForm();render();resetSessionTimer()})
+  var params={};var _fetchOk=false;
+  callApi('getAll',params).then(function(res){var d=res.data||[];S.records=[];S.staffLogs=[];S.activityLogs=[];S.recipes=[];S.rawMatRecords=[];S.grnRecords=[];S.advOrders=[];S.prodOrderRecords=[];S.wastRecords=[];S.employees=[];S.attendanceRecords=[];S.leaveRequests=[];S.shopLocations=[];S.salaryRecords=[];for(var i=0;i<d.length;i++){parseRecord(d[i]);if(d[i].type==='recipe')S.recipes.push(d[i]);else if(d[i].type==='rawMaterial')S.rawMatRecords.push(d[i]);else if(d[i].type==='goodsInward')S.grnRecords.push(d[i]);else if(d[i].type==='advanceOrder')S.advOrders.push(d[i]);else if(d[i].type==='staffLog')S.staffLogs.push(d[i]);else if(d[i].type==='activityLog')S.activityLogs.push(d[i]);else if(d[i].type==='productOrder')S.prodOrderRecords.push(d[i]);else if(d[i].type==='wastage')S.wastRecords.push(d[i]);else if(d[i].type==='employee')S.employees.push(d[i]);else if(d[i].type==='attendance')S.attendanceRecords.push(d[i]);else if(d[i].type==='leaveRequest')S.leaveRequests.push(d[i]);else if(d[i].type==='shopLocation')S.shopLocations.push(d[i]);else if(d[i].type==='salaryRecord')S.salaryRecords.push(d[i]);else S.records.push(d[i])}S.connected=true;_fetchOk=true;syncKnownNames();syncProductNames();flushOfflineQueue()}).catch(function(e){toast('\u274C '+e.message);S.connected=false}).then(function(){S.loading=false;if(_fetchOk)loadForm();render();resetSessionTimer()})
 }
 function toast(msg){var old=document.querySelector('.toast');if(old)old.remove();var t=h('div','toast',msg);document.body.appendChild(t);setTimeout(function(){if(t.parentNode)t.remove()},2500)}
 
@@ -882,7 +882,7 @@ function renderEntry(){
   out+='</div><div style="margin-top:8px;text-align:right"><button class="ab g" id="addGI">\uD83D\uDCE6 Add Goods</button></div></div>';
 
   // === STEP 6: Notes ===
-  out+='<div class="card"><div class="ch"><div class="ci b">\uD83D\uDCDD</div><div><div class="ct">Notes</div><div class="cs">Anything noteworthy</div></div></div><textarea class="fi" id="notesInp" rows="3" placeholder="Power cut, staff absent..." style="resize:none">'+S.notes+'</textarea></div>';
+  out+='<div class="card"><div class="ch"><div class="ci b">\uD83D\uDCDD</div><div><div class="ct">Notes</div><div class="cs">Anything noteworthy</div></div></div><textarea class="fi" id="notesInp" rows="3" placeholder="Power cut, staff absent..." style="resize:none">'+esc(S.notes)+'</textarea></div>';
 
   // === STEP 7: Closing Cash ===
   out+=denomCard('Closing Cash','Count all cash at end of day','cc',S.cc);
@@ -3110,7 +3110,7 @@ function generateExecutiveReport(){
   cogs+=totVen;
   var opex=totExp-cogs+totVen;if(opex<0)opex=0;
   // If cogs double counts, let's be more precise
-  cogs=totVen;var opExpenses=totExp;
+  cogs=totVen;var opExpenses=totExp-totVen;if(opExpenses<0)opExpenses=0;
   var netProfit=totRev-opExpenses-cogs;
   html+='<div style="max-width:500px">';
   html+='<div class="pnl-row head"><span>Revenue</span><span class="val">'+rf(Math.round(totRev))+'</span></div>';
@@ -3540,7 +3540,7 @@ function renderStaffDirectory(){
   if(!S.employees.length)out+='<div class="es">No employees added yet.</div>';
   for(var i=0;i<active.length;i++){var e=active[i];
     var shopLabel=e.shop==-1?'All':e.shop==2?'Floater':SHOPS[e.shop]||'Shop '+e.shop;
-    out+='<div class="ir"><div style="flex:1"><div class="in">'+esc(e.name)+'</div><div class="ic">\uD83D\uDCF1 '+esc(e.phone||'N/A')+' \u2022 '+esc(e.role||'staff')+' \u2022 '+shopLabel+'</div><div class="ic">\uD83D\uDCB0 \u20B9'+fmt(e.monthlySalary||0)+'/mo \u2022 Leave: '+(e.annualLeave||12)+' days/yr</div></div>';
+    out+='<div class="ir"><div style="flex:1"><div class="in">'+esc(e.name)+'</div><div class="ic">\uD83D\uDCF1 '+esc(e.phone||'N/A')+' \u2022 '+esc(e.role||'staff')+' \u2022 '+shopLabel+'</div><div class="ic">\uD83D\uDCB0 '+fmt(e.monthlySalary||0)+'/mo \u2022 Leave: '+(e.annualLeave||12)+' days/yr</div></div>';
     if(canEdit)out+='<div style="display:flex;gap:4px"><button class="ab" data-editemp="'+e.id+'" style="font-size:10px;padding:3px 8px;background:var(--card);border:1px solid var(--border);color:var(--text2);border-radius:var(--rs)">\u270E</button><button class="ix" data-delemp="'+e.id+'">\u00D7</button></div>';
     out+='</div>';
   }
@@ -3628,8 +3628,8 @@ function renderSalary(){
     var pending=salary-advances-paid;
     totalSalary+=salary;totalAdvances+=advances;totalPaid+=paid;
     out+='<div class="ir"><div style="flex:1"><div class="in">'+esc(emp.name)+'</div>';
-    out+='<div class="ic">\uD83D\uDCB0 \u20B9'+fmt(salary)+' \u2022 Adv: \u20B9'+fmt(advances)+' \u2022 Paid: \u20B9'+fmt(paid)+'</div>';
-    out+='<div style="font-size:11px;font-weight:700;color:'+(pending>0?'var(--amber)':'var(--green)')+'">Pending: \u20B9'+fmt(pending)+'</div></div>';
+    out+='<div class="ic">\uD83D\uDCB0 '+fmt(salary)+' \u2022 Adv: '+fmt(advances)+' \u2022 Paid: '+fmt(paid)+'</div>';
+    out+='<div style="font-size:11px;font-weight:700;color:'+(pending>0?'var(--amber)':'var(--green)')+'">Pending: '+fmt(pending)+'</div></div>';
     if(canEdit)out+='<div style="display:flex;gap:4px"><button class="ab a" data-addadvance="'+emp.id+'" style="font-size:10px;padding:3px 8px;border-radius:var(--rs)">+ Advance</button><button class="ab g" data-markpaid="'+emp.id+'" style="font-size:10px;padding:3px 8px;border-radius:var(--rs)">Pay</button></div>';
     out+='</div>';
   }
@@ -3637,9 +3637,9 @@ function renderSalary(){
   // Summary
   var totalPending=totalSalary-totalAdvances-totalPaid;
   out+='<div style="margin-top:12px;padding:12px;background:var(--bg);border-radius:12px;text-align:center">';
-  out+='<div class="fr c3"><div><div style="font-size:10px;color:var(--text3)">TOTAL SALARY</div><div style="font-size:16px;font-weight:700">\u20B9'+fmt(totalSalary)+'</div></div>';
-  out+='<div><div style="font-size:10px;color:var(--text3)">ADVANCES</div><div style="font-size:16px;font-weight:700;color:var(--amber)">\u20B9'+fmt(totalAdvances)+'</div></div>';
-  out+='<div><div style="font-size:10px;color:var(--text3)">PENDING</div><div style="font-size:16px;font-weight:700;color:'+(totalPending>0?'var(--rose)':'var(--green)')+'">\u20B9'+fmt(totalPending)+'</div></div></div>';
+  out+='<div class="fr c3"><div><div style="font-size:10px;color:var(--text3)">TOTAL SALARY</div><div style="font-size:16px;font-weight:700">'+fmt(totalSalary)+'</div></div>';
+  out+='<div><div style="font-size:10px;color:var(--text3)">ADVANCES</div><div style="font-size:16px;font-weight:700;color:var(--amber)">'+fmt(totalAdvances)+'</div></div>';
+  out+='<div><div style="font-size:10px;color:var(--text3)">PENDING</div><div style="font-size:16px;font-weight:700;color:'+(totalPending>0?'var(--rose)':'var(--green)')+'">'+fmt(totalPending)+'</div></div></div>';
   out+='</div></div>';
   return out;
 }
@@ -3760,7 +3760,7 @@ function bindEvents(){
       var capPrev=document.getElementById('loginCapPreview');if(capPrev){capPrev.style.display='block';var img=document.getElementById('loginClockPhoto');if(img)img.src=selfie}
       var entry={empId:emp.id,empName:emp.name,action:action,lat:gps.lat,lng:gps.lng,gpsAccuracy:gps.accuracy,selfie:selfie,shop:emp.shop!=null?emp.shop:0,shopName:emp.shop==0?'Highway':emp.shop==1?'Mainroad':'Unknown'};
       toast('\u23F3 Saving...');
-      return fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'saveAttendance',body:entry})}).then(function(r){return r.json()});
+      return fetch(API+'?action=saveAttendance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)}).then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(ex){var m=t.match(/href="([^"]+)"/);if(m){var rurl=m[1].replace(/&amp;/g,'&');return fetch(rurl).then(function(r2){return r2.json()})}throw new Error('Attendance save failed. Check connection.')}});
     }).then(function(resp){
       if(resp.error){throw new Error(resp.error)}
       toast('\u2705 '+(action==='clockIn'?'Clocked In':'Clocked Out')+' successfully!');
@@ -3784,7 +3784,7 @@ function bindEvents(){
   var si2=document.getElementById('shopInp');if(si2)si2.onchange=function(e){S.shop=parseInt(e.target.value);loadForm();render()};
   var ui=document.getElementById('upiInp');if(ui)ui.oninput=function(e){S.upi=parseInt(e.target.value)||0};
   var wi=document.getElementById('walkInp');if(wi)wi.oninput=function(e){S.walk=parseInt(e.target.value)||0};
-  var cri=document.getElementById('cashRetInp');if(cri)cri.oninput=function(e){S.cashRetained=parseInt(e.target.value)||0;var ct=dTotal(S.cc),ot=dTotal(S.oc),cr=S.cashRetained,tk=ct-cr;var opEx=0;for(var i=0;i<S.exps.length;i++){if(S.exps[i].category!=='Vendor Payment')opEx+=S.exps[i].amount||0}var cashSales=ct-ot+opEx;var gross=cashSales+S.upi;S.billed=gross;var tkEl=document.getElementById('cashTakenDisp');if(tkEl)tkEl.value=fmt(tk);var retTip=document.getElementById('retainTip');if(retTip)retTip.innerHTML='\uD83D\uDCA1 Closing ('+fmt(ct)+') \u2212 Retained ('+fmt(cr)+') = Taken ('+fmt(tk)+')';var plSec=document.getElementById('plSection');if(plSec){var np=gross-opEx;var gm=gross>0?((gross-opEx)/gross*100).toFixed(1):'0.0';plSec.innerHTML='<div class="fr c2"><div class="fg"><div class="fl">Cash Sales</div><div style=\"font-size:18px;font-weight:700;color:var(--text1)\">'+fmt(cashSales)+'</div></div><div class="fg"><div class="fl">UPI Sales</div><div style=\"font-size:18px;font-weight:700;color:var(--text1)\">'+fmt(S.upi)+'</div></div></div><div class="fr c2"><div class="fg"><div class="fl">Gross Revenue</div><div style=\"font-size:22px;font-weight:800;color:var(--pr)\">'+fmt(gross)+'</div></div><div class="fg"><div class="fl">Operating Expenses</div><div style=\"font-size:18px;font-weight:700;color:var(--dn)\">'+fmt(opEx)+'</div></div></div><div style=\"text-align:center;padding:12px;background:'+(np>=0?'#e8f5e9':'#fbe9e7')+';border-radius:12px;margin-top:8px\"><div style=\"font-size:11px;color:var(--text3)\">NET PROFIT</div><div style=\"font-size:28px;font-weight:800;color:'+(np>=0?'var(--up)':'var(--dn)')+'\">'+fmt(np)+'</div><div style=\"font-size:11px;color:var(--text3)\">Gross Margin: '+gm+'%</div></div>';}};
+  var cri=document.getElementById('cashRetInp');if(cri)cri.oninput=function(e){S.cashRetained=Math.max(0,parseInt(e.target.value)||0);var ct=dTotal(S.cc),ot=dTotal(S.oc),cr=S.cashRetained,tk=ct-cr;var expTot=0;for(var i=0;i<S.exps.length;i++)expTot+=S.exps[i].amount||0;var cashSales=ct-ot;var gross=expTot+S.upi+cashSales;S.billed=gross;var tkEl=document.getElementById('cashTakenDisp');if(tkEl)tkEl.value=fmt(tk);var retTip=document.getElementById('retainTip');if(retTip)retTip.innerHTML='\uD83D\uDCA1 Closing ('+fmt(ct)+') \u2212 Retained ('+fmt(cr)+') = Taken ('+fmt(tk)+')';var plSec=document.getElementById('plSection');if(plSec){var np=S.upi+cashSales;var gm=gross>0?(np/gross*100).toFixed(1):'0.0';plSec.innerHTML='<div class="fr c2"><div class="fg"><div class="fl">Cash Sales</div><div style=\"font-size:18px;font-weight:700;color:var(--text1)\">'+fmt(cashSales)+'</div></div><div class="fg"><div class="fl">UPI Sales</div><div style=\"font-size:18px;font-weight:700;color:var(--text1)\">'+fmt(S.upi)+'</div></div></div><div class="fr c2"><div class="fg"><div class="fl">Gross Revenue</div><div style=\"font-size:22px;font-weight:800;color:var(--pr)\">'+fmt(gross)+'</div></div><div class="fg"><div class="fl">Total Expenses</div><div style=\"font-size:18px;font-weight:700;color:var(--dn)\">'+fmt(expTot)+'</div></div></div><div style=\"text-align:center;padding:12px;background:'+(np>=0?'#e8f5e9':'#fbe9e7')+';border-radius:12px;margin-top:8px\"><div style=\"font-size:11px;color:var(--text3)\">NET PROFIT</div><div style=\"font-size:28px;font-weight:800;color:'+(np>=0?'var(--up)':'var(--dn)')+'\">'+fmt(np)+'</div><div style=\"font-size:11px;color:var(--text3)\">Gross Margin: '+gm+'%</div></div>';}};
   document.querySelectorAll('[data-denom]').forEach(function(inp){inp.oninput=function(e){var parts=inp.dataset.denom.split('-');var key=parts[0];var idx=parseInt(parts[1]);S[key][idx]=parseInt(e.target.value)||0;var tot=dTotal(S[key]);var card=inp.closest('.card');if(card){var dt=card.querySelector('.dt');if(dt)dt.textContent=fmt(tot)}}});
   // Custom autocomplete for expense description
   var ec=document.getElementById('expCat');if(ec){var updateExpAC=function(){var known=getKnownNames();var cat=ec.value;var names=cat==='Vendor Payment'?known.vendors:cat==='Advance Salary'?known.staff:[];acInput('expDesc',names)};ec.addEventListener('change',updateExpAC);updateExpAC()}
@@ -3904,7 +3904,7 @@ function bindEvents(){
       var rec=toUpdate[done];
       if(rec.category==='Sweets')rec.category='Sweets & Snacks';
       var po=rec.productOrders||[];for(var j=0;j<po.length;j++){if(po[j].category==='Sweets')po[j].category='Sweets & Snacks'}
-      callApi('save',rec).then(function(){done++;next()}).catch(function(){errs++;done++;next()});
+      callApi('save',{},rec).then(function(){done++;next()}).catch(function(){errs++;done++;next()});
     }
     next();
   };
@@ -4141,7 +4141,11 @@ function bindEvents(){
   var saveWastBtn=document.getElementById('saveWastBtn');if(saveWastBtn)saveWastBtn.onclick=function(){
     if(S.saving||!S.wastItems.length)return;S.saving=true;saveWastBtn.textContent='\u23F3 Saving...';saveWastBtn.className='save-btn off';
     var curShop=S.role==='staff'?S.shop:S.wastShop;
-    var entry={id:gid(),type:'wastage',shop:curShop,date:S.date,productOrders:JSON.parse(JSON.stringify(S.wastItems)),savedAt:new Date().toISOString(),savedBy:S.role||(S.staffShop>=0?'staff':'unknown')};
+    // Backend replaces the whole day's wastage record for this shop+date, so merge in already-saved items or they'd be lost
+    var mergedWast=[];var seenWast={};
+    for(var wi=0;wi<(S.wastRecords||[]).length;wi++){var wr=S.wastRecords[wi];if(wr.date===S.date&&wr.shop==curShop){var wIt=wr.productOrders||[];for(var wj=0;wj<wIt.length;wj++){var wk=wIt[wj].id||(wIt[wj].product+'|'+wIt[wj].qty+'|'+wIt[wj].unit);if(!seenWast[wk]){seenWast[wk]=1;mergedWast.push(JSON.parse(JSON.stringify(wIt[wj])))}}}}
+    for(var wn=0;wn<S.wastItems.length;wn++){var nk=S.wastItems[wn].id||(S.wastItems[wn].product+'|'+S.wastItems[wn].qty+'|'+S.wastItems[wn].unit);if(!seenWast[nk]){seenWast[nk]=1;mergedWast.push(JSON.parse(JSON.stringify(S.wastItems[wn])))}}
+    var entry={id:gid(),type:'wastage',shop:curShop,date:S.date,productOrders:mergedWast,savedAt:new Date().toISOString(),savedBy:S.role||(S.staffShop>=0?'staff':'unknown')};
     logActivity('save_wastage','Saved '+S.wastItems.length+' wastage items for '+SHOPS[curShop]);
     callApi('save',{},entry).then(function(){toast('\u2705 Wastage saved!');S.wastItems=[];return doFetch()}).catch(function(e){toast('\u274C '+e.message)}).then(function(){S.saving=false;var b=document.getElementById('saveWastBtn');if(b){b.textContent='\uD83D\uDCBE Save Wastage Record';b.className='save-btn'}})
   };
@@ -4233,7 +4237,7 @@ function bindEvents(){
     var custName=cust.value,delDate=dt?dt.value:S.advDate,shopVal=shop?parseInt(shop.value):S.advShop,orderNotes=notes?notes.value:'';
     var saves=[];
     for(var i=0;i<S.advItems.length;i++){var itm=S.advItems[i];
-      var entry={type:'advanceOrder',id:gid(),customer:custName,deliveryDate:delDate,shop:shopVal,product:itm.product,qty:itm.qty,unit:itm.unit,category:itm.category,notes:(itm.notes?itm.notes:'')+(orderNotes?' \u2022 '+orderNotes:''),savedAt:new Date().toISOString(),savedBy:'ordering'};
+      var entry={type:'advanceOrder',id:gid(),date:today(),customer:custName,deliveryDate:delDate,shop:shopVal,product:itm.product,qty:itm.qty,unit:itm.unit,category:itm.category,notes:(itm.notes?itm.notes:'')+(orderNotes?' \u2022 '+orderNotes:''),savedAt:new Date().toISOString(),savedBy:'ordering'};
       saves.push(callApi('save',{},entry))}
     Promise.all(saves).then(function(){toast('\u2705 '+S.advItems.length+' item'+(S.advItems.length>1?'s':'')+' saved!');S.advCust='';S.advProd='';S.advQty='';S.advNotes='';S.advItems=[];return doFetch()}).catch(function(e){toast('\u274C '+e.message)}).then(function(){S.saving=false;render()})
   };
@@ -4251,7 +4255,7 @@ function bindEvents(){
     ov.innerHTML=md;document.body.appendChild(ov);
     document.getElementById('eaCancel').onclick=function(){ov.remove()};
     document.getElementById('eaSave').onclick=function(){
-      var updated={type:'advanceOrder',id:order.id,customer:document.getElementById('eaCust').value,product:document.getElementById('eaProd').value,deliveryDate:document.getElementById('eaDate').value,qty:parseInt(document.getElementById('eaQty').value)||0,unit:document.getElementById('eaUnit').value,shop:parseInt(document.getElementById('eaShop').value),notes:document.getElementById('eaNotes').value,category:order.category||'Baking',savedAt:new Date().toISOString(),savedBy:'ordering'};
+      var updated={type:'advanceOrder',id:order.id,date:order.date||today(),customer:document.getElementById('eaCust').value,product:document.getElementById('eaProd').value,deliveryDate:document.getElementById('eaDate').value,qty:parseInt(document.getElementById('eaQty').value)||0,unit:document.getElementById('eaUnit').value,shop:parseInt(document.getElementById('eaShop').value),notes:document.getElementById('eaNotes').value,category:order.category||'Baking',savedAt:new Date().toISOString(),savedBy:'ordering'};
       if(!updated.customer||!updated.product||!updated.qty){toast('\u274C Fill all required fields');return}
       ov.remove();callApi('save',{},updated).then(function(){toast('\u2705 Order updated');doFetch()}).catch(function(e){toast('\u274C '+e.message)})
     };
@@ -4458,7 +4462,7 @@ function bindEvents(){
     // Find or create salary record for this month
     var rec=null;for(var i=0;i<S.salaryRecords.length;i++){if(S.salaryRecords[i].empId===empId&&S.salaryRecords[i].month===S.salMonth){rec=S.salaryRecords[i];break}}
     var entry={id:rec?rec.id:gid(),type:'salaryRecord',empId:empId,empName:emp.name,month:S.salMonth,totalAdvances:(rec?rec.totalAdvances||0:0)+amount,paidAmount:rec?rec.paidAmount||0:0,date:today(),savedAt:new Date().toISOString()};
-    callApi('save',{},entry).then(function(){toast('\u2705 Advance of \u20B9'+fmt(amount)+' recorded');return doFetch()}).catch(function(e){toast('\u274C '+e.message)})
+    callApi('save',{},entry).then(function(){toast('\u2705 Advance of '+fmt(amount)+' recorded');return doFetch()}).catch(function(e){toast('\u274C '+e.message)})
   }});
   document.querySelectorAll('[data-markpaid]').forEach(function(b){b.onclick=function(){
     var empId=b.dataset.markpaid;var emp=getEmpById(empId);if(!emp)return;
@@ -4467,7 +4471,7 @@ function bindEvents(){
     var amount=prompt('Pay '+emp.name+'.\nSalary: \u20B9'+salary+', Advances: \u20B9'+advances+', Already Paid: \u20B9'+paid+'\nPending: \u20B9'+pending+'\n\nEnter payment amount:',pending>0?pending:'');
     if(!amount)return;amount=parseInt(amount)||0;if(!amount){toast('\u274C Invalid amount');return}
     var entry={id:rec?rec.id:gid(),type:'salaryRecord',empId:empId,empName:emp.name,month:S.salMonth,totalAdvances:advances,paidAmount:paid+amount,date:today(),savedAt:new Date().toISOString()};
-    callApi('save',{},entry).then(function(){toast('\u2705 Payment of \u20B9'+fmt(amount)+' recorded');return doFetch()}).catch(function(e){toast('\u274C '+e.message)})
+    callApi('save',{},entry).then(function(){toast('\u2705 Payment of '+fmt(amount)+' recorded');return doFetch()}).catch(function(e){toast('\u274C '+e.message)})
   }});
   // Leave Management
   var submitLeave=document.getElementById('submitLeave');if(submitLeave)submitLeave.onclick=function(){
