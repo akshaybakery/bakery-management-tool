@@ -1,7 +1,7 @@
 const SHEET_NAME = 'Entries';
 const CONFIG_SHEET = 'Config';
 const MAX_ENTRY_SIZE = 500000;
-const AUTH_TOKEN_TTL_SEC = 12 * 60 * 60;
+const AUTH_TOKEN_TTL_SEC = 6 * 60 * 60; // CacheService caps expiration at 21600s (6h) — larger values throw
 const MAX_PIN_LENGTH = 128;
 const JSON_FIELDS = ['openingCash', 'closingCash', 'expenses', 'vendorPayments', 'goodsInward', 'productOrders', 'ingredients', 'method', 'materials'];
 const NUMBER_FIELDS = ['shop', 'openingTotal', 'closingTotal', 'upiReceived', 'totalBilled', 'walkIns', 'totalExpenses', 'totalVendorPayments', 'totalGoodsInward', 'cashRetained', 'qty', 'lat', 'lng', 'gpsAccuracy', 'distanceFromShop', 'monthlySalary', 'totalAdvances', 'pendingPay', 'paidAmount', 'days', 'radiusMeters', 'leaveBalance', 'annualLeave'];
@@ -20,9 +20,19 @@ function handleRequest(e) {
   var body = null;
   var result;
 
+  // Mutating actions modify sheet rows by cached index — serialize them so two
+  // simultaneous saves (e.g. both shops at closing time) can't corrupt each other.
+  var MUTATING_ACTIONS = ['save', 'delete', 'deleteAll', 'saveAttendance', 'changePin'];
+  var lock = null;
+
   try {
     if (action === 'save' || action === 'changePin' || action === 'saveAttendance') {
       body = getPayloadObject(e);
+    }
+
+    if (MUTATING_ACTIONS.indexOf(action) >= 0) {
+      lock = LockService.getScriptLock();
+      lock.waitLock(30000);
     }
 
     switch (action) {
@@ -61,6 +71,10 @@ function handleRequest(e) {
     }
   } catch (err) {
     result = { success: false, error: err && err.message ? err.message : String(err) };
+  } finally {
+    if (lock) {
+      try { lock.releaseLock(); } catch (lockErr) {}
+    }
   }
 
   return ContentService
@@ -96,6 +110,8 @@ function sanitizePayload(payload) {
   if (!payload || typeof payload !== 'object') return {};
   var clean = JSON.parse(JSON.stringify(payload));
   delete clean.token;
+  // Google Sheets rejects cells over 50,000 chars — drop an oversized selfie rather than failing the save
+  if (clean.selfie && String(clean.selfie).length > 45000) clean.selfie = '';
   return clean;
 }
 
@@ -240,8 +256,13 @@ function getAllEntries(params) {
   var jsonIdx = {};
   var numIdx = {};
   var dateIdx = headers.indexOf('date');
+  var typeIdx = headers.indexOf('type');
   var cutoffStr = '';
   var applyRecentStaffFilter = auth.role === 'highway' || auth.role === 'mainroad';
+  // Persistent record types must never be hidden by the recent-days filter —
+  // staff need employees (leave form), shop locations (geofence), recipes,
+  // customer advance orders, leave requests and salary records regardless of age.
+  var PERSISTENT_TYPES = ['employee', 'shopLocation', 'recipe', 'advanceOrder', 'leaveRequest', 'salaryRecord'];
 
   for (var h = 0; h < headers.length; h++) {
     if (JSON_FIELDS.indexOf(headers[h]) >= 0) jsonIdx[h] = true;
@@ -256,11 +277,14 @@ function getAllEntries(params) {
 
   for (var i = 1; i < data.length; i++) {
     if (applyRecentStaffFilter && dateIdx >= 0) {
-      var rowDate = data[i][dateIdx];
-      rowDate = rowDate instanceof Date
-        ? Utilities.formatDate(rowDate, Session.getScriptTimeZone(), 'yyyy-MM-dd')
-        : String(rowDate).substring(0, 10);
-      if (rowDate < cutoffStr) continue;
+      var filterType = typeIdx >= 0 ? String(data[i][typeIdx] || '') : '';
+      if (PERSISTENT_TYPES.indexOf(filterType) === -1) {
+        var rowDate = data[i][dateIdx];
+        rowDate = rowDate instanceof Date
+          ? Utilities.formatDate(rowDate, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+          : String(rowDate).substring(0, 10);
+        if (rowDate < cutoffStr) continue;
+      }
     }
 
     var row = {};
@@ -316,8 +340,11 @@ function saveEntry(entry, params) {
         : String(data[i][dateCol]).substring(0, 10);
       var rowType = typeCol >= 0 ? String(data[i][typeCol] || '') : '';
 
-      if (entry.type === 'activityLog' || entry.type === 'staffLog' || entry.type === 'attendance') {
+      if (entry.type === 'activityLog' || entry.type === 'staffLog') {
         continue;
+      } else if (entry.type === 'attendance') {
+        // Append-only for new clock-ins, but replace by id so owner edits don't duplicate rows
+        if (idCol >= 0 && entry.id && data[i][idCol] === entry.id) rowsToDelete.push(i + 1);
       } else if (entry.type === 'shopLocation') {
         if (rowType === 'shopLocation' && String(data[i][shopCol]) === String(entry.shop)) rowsToDelete.push(i + 1);
       } else if (entry.type === 'employee' || entry.type === 'leaveRequest' || entry.type === 'salaryRecord') {
@@ -532,6 +559,15 @@ function saveAttendancePublic(entry) {
   }
   if (entry.action !== 'clockIn' && entry.action !== 'clockOut') {
     return { success: false, error: 'Invalid action' };
+  }
+  if (entry.date && !/^\d{4}-\d{2}-\d{2}$/.test(String(entry.date))) {
+    return { success: false, error: 'Invalid date format' };
+  }
+  // Google Sheets rejects cells over 50,000 chars — drop an oversized selfie rather than losing the whole record
+  if (entry.selfie && String(entry.selfie).length > 45000) entry.selfie = '';
+  var json = JSON.stringify(entry);
+  if (json.length > MAX_ENTRY_SIZE) {
+    return { success: false, error: 'Entry too large (max 500KB)' };
   }
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(SHEET_NAME);
